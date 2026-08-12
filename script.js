@@ -141,16 +141,39 @@ function broadcastData(data) {
     }
 }
 
+function handlePlayerLeft(idx) {
+    if (idx < 0 || idx >= activePlayersCount) return;
+    playerLeftStatus[idx] = true;
+    const color = playerColors[idx];
+    const pName = activePlayerNames[idx] || `PLAYER_${idx + 1}`;
+
+    const leftSpan = document.getElementById(`left-text-${color}`);
+    if (leftSpan) leftSpan.innerText = `${pName}_LEFT`;
+    const overlay = document.getElementById(`overlay-${color}`);
+    if (overlay) overlay.style.display = 'flex';
+
+    tokens[color].forEach((tok, index) => {
+        const elem = document.getElementById(`tok-${color}-${index}`);
+        if (elem) elem.style.display = 'none';
+    });
+
+    showToast(`${pName} Left`);
+    renderTokens();
+
+    if (currentTurnIndex === idx) {
+        hasRolled = false;
+        isAnimating = false;
+        nextTurn();
+    }
+}
+
 function handlePeerMessage(data, senderIdx) {
     if (data.type === 'DICE_ROLL') {
         performDiceRoll(data.val);
     } else if (data.type === 'TOKEN_MOVE') {
         handleTokenClick(data.color, data.index, true);
     } else if (data.type === 'PLAYER_LEFT') {
-        playerLeftStatus[data.playerIdx] = true;
-        showToast(`${activePlayerNames[data.playerIdx] || 'Player'} Left`);
-        document.getElementById(`overlay-${playerColors[data.playerIdx]}`).style.display = 'flex';
-        if (currentTurnIndex === data.playerIdx) nextTurn();
+        handlePlayerLeft(data.playerIdx);
     }
 }
 
@@ -306,14 +329,13 @@ function handleCreateRoom() {
         conn.on('close', () => {
             const idx = conn.playerIndex;
             if (idx !== undefined) {
-                playerLeftStatus[idx] = true;
-                showToast(`${roomPlayersList[idx] || 'Player'} Left`);
+                handlePlayerLeft(idx);
                 broadcastData({ type: 'PLAYER_LEFT', playerIdx: idx });
             }
         });
     });
 
-    peer.on('error', (err) => {
+    peer.on('error', () => {
         alert('Could not create room. Try again.');
     });
 }
@@ -488,6 +510,8 @@ function launchGame() {
     isAnimating = false;
     playerLeftStatus = [false, false, false, false];
 
+    if (!isFriendMode) myPlayerIndex = 0;
+
     playerColors.forEach(c => {
         document.getElementById(`overlay-${c}`).style.display = 'none';
     });
@@ -538,9 +562,16 @@ function renderTokens() {
     const spotGroup = {};
 
     for (let i = 0; i < activePlayersCount; i++) {
-        if (playerLeftStatus[i]) continue;
-        
         const color = playerColors[i];
+
+        if (playerLeftStatus[i]) {
+            tokens[color].forEach((tok, index) => {
+                const elem = document.getElementById(`tok-${color}-${index}`);
+                if (elem) elem.style.display = 'none';
+            });
+            continue;
+        }
+        
         tokens[color].forEach((tok, index) => {
             let key = '';
             if (tok.pos === -1) {
@@ -571,6 +602,7 @@ function renderTokens() {
         group.forEach((item, grpIdx) => {
             const elem = document.getElementById(`tok-${item.color}-${item.index}`);
             if (elem) {
+                elem.style.display = 'block';
                 placeTokenCentered(elem, targetSpot, grpIdx, group.length);
             }
         });
@@ -606,7 +638,7 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1) {
     tokenElem.style.top = centerY + 'px';
 }
 
-function rollDice() {
+function onDiceClick() {
     if (hasRolled || isAnimating) return;
     if (isAIMode && currentTurnIndex !== 0) return;
     if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
@@ -661,10 +693,11 @@ function checkMovePossibility() {
     }
 }
 
-async function handleTokenClick(color, index, isRemote = false) {
+async function handleTokenClick(color, index, isRemote = false, isAICall = false) {
     if (!hasRolled || isAnimating) return;
     if (color !== playerColors[currentTurnIndex]) return;
     if (isFriendMode && !isRemote && currentTurnIndex !== myPlayerIndex) return;
+    if (isAIMode && currentTurnIndex !== 0 && !isAICall) return;
 
     if (isFriendMode && !isRemote) {
         broadcastData({ type: 'TOKEN_MOVE', color: color, index: index });
@@ -763,7 +796,9 @@ function finishMove(color, extraTurnGranted = false) {
 
     if (diceValue === 6 || extraTurnGranted) {
         document.getElementById('diceBtn').innerText = '🎲';
-        if (isAIMode && currentTurnIndex !== 0) setTimeout(rollDice, 600);
+        if (isAIMode && currentTurnIndex !== 0) {
+            setTimeout(performDiceRoll, 600);
+        }
     } else {
         nextTurn();
     }
@@ -777,11 +812,12 @@ function nextTurn() {
     } while (playerLeftStatus[currentTurnIndex] && loopCount < activePlayersCount);
 
     hasRolled = false;
+    isAnimating = false;
     document.getElementById('diceBtn').innerText = '🎲';
     updateTurnUI();
 
-    if (isAIMode && currentTurnIndex !== 0) {
-        setTimeout(rollDice, 600);
+    if (isAIMode && currentTurnIndex !== 0 && !playerLeftStatus[currentTurnIndex]) {
+        setTimeout(performDiceRoll, 600);
     }
 }
 
@@ -834,7 +870,7 @@ async function autoCPUMove() {
     }
 
     if (chosenIndex !== -1) {
-        await handleTokenClick(currentBotColor, chosenIndex);
+        await handleTokenClick(currentBotColor, chosenIndex, false, true);
     } else {
         nextTurn();
     }
