@@ -31,6 +31,12 @@ let hasRolled = false;
 let currentRoomCode = '';
 let roomPlayersList = [];
 
+let peer = null;
+let connections = [];
+let hostConn = null;
+let isHost = false;
+let myPlayerIndex = 0;
+
 const paths = {
     red: [
         'cell-6-1','cell-6-2','cell-6-3','cell-6-4','cell-6-5','cell-5-6','cell-4-6','cell-3-6','cell-2-6','cell-1-6','cell-0-6',
@@ -122,6 +128,30 @@ function closeModal() { document.getElementById('modalOverlay').style.display = 
 function openModal(content) {
     document.getElementById('modalBox').innerHTML = content;
     document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function broadcastData(data) {
+    if (!isFriendMode) return;
+    if (isHost) {
+        connections.forEach(conn => {
+            if (conn && conn.open) conn.send(data);
+        });
+    } else if (hostConn && hostConn.open) {
+        hostConn.send(data);
+    }
+}
+
+function handlePeerMessage(data, senderIdx) {
+    if (data.type === 'DICE_ROLL') {
+        performDiceRoll(data.val);
+    } else if (data.type === 'TOKEN_MOVE') {
+        handleTokenClick(data.color, data.index, true);
+    } else if (data.type === 'PLAYER_LEFT') {
+        playerLeftStatus[data.playerIdx] = true;
+        showToast(`${activePlayerNames[data.playerIdx] || 'Player'} Left`);
+        document.getElementById(`overlay-${playerColors[data.playerIdx]}`).style.display = 'flex';
+        if (currentTurnIndex === data.playerIdx) nextTurn();
+    }
 }
 
 function openTopMenu() {
@@ -231,9 +261,61 @@ function openFriendMenu() {
 function handleCreateRoom() {
     const userName = document.getElementById('pNameInput').value.trim() || 'Host Player';
     currentRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    isHost = true;
+    myPlayerIndex = 0;
     roomPlayersList = [userName];
+    connections = [];
+
     closeModal();
-    openFullRoomLobby();
+
+    if (peer) peer.destroy();
+    peer = new Peer(`ludo-king-room-${currentRoomCode}`);
+
+    peer.on('open', () => {
+        openFullRoomLobby();
+    });
+
+    peer.on('connection', (conn) => {
+        if (roomPlayersList.length >= 4) {
+            conn.send({ type: 'REJECT', reason: 'Room Full' });
+            setTimeout(() => conn.close(), 500);
+            return;
+        }
+
+        conn.on('data', (data) => {
+            if (data.type === 'JOIN_REQ') {
+                const newIdx = roomPlayersList.length;
+                conn.playerIndex = newIdx;
+                connections.push(conn);
+                roomPlayersList.push(data.name);
+
+                broadcastData({
+                    type: 'LOBBY_UPDATE',
+                    players: roomPlayersList
+                });
+
+                renderWoodenLobbyList();
+            } else {
+                handlePeerMessage(data, conn.playerIndex);
+                connections.forEach(c => {
+                    if (c !== conn && c.open) c.send(data);
+                });
+            }
+        });
+
+        conn.on('close', () => {
+            const idx = conn.playerIndex;
+            if (idx !== undefined) {
+                playerLeftStatus[idx] = true;
+                showToast(`${roomPlayersList[idx] || 'Player'} Left`);
+                broadcastData({ type: 'PLAYER_LEFT', playerIdx: idx });
+            }
+        });
+    });
+
+    peer.on('error', (err) => {
+        alert('Could not create room. Try again.');
+    });
 }
 
 function openEnterCodeScreen() {
@@ -249,15 +331,62 @@ function openEnterCodeScreen() {
 
 function submitJoinRoom() {
     const userName = document.getElementById('pNameJoin').value.trim() || 'Player 2';
-    const code = document.getElementById('rCodeInput').value;
-    if (code.length >= 4) {
-        currentRoomCode = code;
-        roomPlayersList = ['Host Player', userName];
-        closeModal();
-        openFullRoomLobby();
-    } else {
+    const code = document.getElementById('rCodeInput').value.trim();
+
+    if (code.length < 4) {
         alert('Please enter valid room code!');
+        return;
     }
+
+    currentRoomCode = code;
+    isHost = false;
+
+    closeModal();
+    openModal(`
+        <h3>Joining Room...</h3>
+        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #ffb347; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    `);
+
+    if (peer) peer.destroy();
+    peer = new Peer();
+
+    peer.on('open', () => {
+        hostConn = peer.connect(`ludo-king-room-${code}`);
+
+        hostConn.on('open', () => {
+            closeModal();
+            hostConn.send({ type: 'JOIN_REQ', name: userName });
+            openFullRoomLobby();
+        });
+
+        hostConn.on('data', (data) => {
+            if (data.type === 'LOBBY_UPDATE') {
+                roomPlayersList = data.players;
+                myPlayerIndex = roomPlayersList.indexOf(userName);
+                if (myPlayerIndex === -1) myPlayerIndex = roomPlayersList.length - 1;
+                renderWoodenLobbyList();
+            } else if (data.type === 'GAME_START') {
+                activePlayerNames = data.players;
+                activePlayersCount = data.count;
+                isAIMode = false;
+                isFriendMode = true;
+                document.getElementById('lobbyView').style.display = 'none';
+                launchGame();
+            } else {
+                handlePeerMessage(data);
+            }
+        });
+
+        hostConn.on('close', () => {
+            showToast('Host disconnected!');
+        });
+    });
+
+    peer.on('error', () => {
+        closeModal();
+        alert('Room not found or Host offline!');
+    });
 }
 
 function openFullRoomLobby() {
@@ -280,24 +409,40 @@ function renderWoodenLobbyList() {
     });
 
     const startBtn = document.getElementById('startGameBtn');
-    if (roomPlayersList.length >= 2) {
-        startBtn.style.display = 'block';
-        waitingMsg.style.display = 'none';
+    if (isHost) {
+        if (roomPlayersList.length >= 2) {
+            startBtn.style.display = 'block';
+            waitingMsg.style.display = 'none';
+        } else {
+            startBtn.style.display = 'none';
+            waitingMsg.innerText = 'Waiting for friends to join...';
+            waitingMsg.style.display = 'block';
+        }
     } else {
         startBtn.style.display = 'none';
+        waitingMsg.innerText = 'Waiting for Host to start game...';
         waitingMsg.style.display = 'block';
     }
 }
 
 function closeLobbyAndReturn() {
+    if (peer) peer.destroy();
     document.getElementById('lobbyView').style.display = 'none';
 }
 
 function startRoomGame() {
+    if (!isHost) return;
     activePlayerNames = [...roomPlayersList];
     activePlayersCount = roomPlayersList.length;
     isAIMode = false;
     isFriendMode = true;
+
+    broadcastData({
+        type: 'GAME_START',
+        players: activePlayerNames,
+        count: activePlayersCount
+    });
+
     document.getElementById('lobbyView').style.display = 'none';
     launchGame();
 }
@@ -360,6 +505,7 @@ function launchGame() {
 }
 
 function exitGameToHome() {
+    if (peer) peer.destroy();
     document.getElementById('menuView').style.display = 'flex';
     document.getElementById('gameView').style.display = 'none';
     document.getElementById('lobbyView').style.display = 'none';
@@ -463,11 +609,17 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1) {
 function rollDice() {
     if (hasRolled || isAnimating) return;
     if (isAIMode && currentTurnIndex !== 0) return;
+    if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
+
     if (playerLeftStatus[currentTurnIndex]) {
         nextTurn();
         return;
     }
 
+    performDiceRoll();
+}
+
+function performDiceRoll(predeterminedVal = null) {
     isAnimating = true;
     const diceBtn = document.getElementById('diceBtn');
     diceBtn.classList.add('rolling');
@@ -478,11 +630,15 @@ function rollDice() {
 
     setTimeout(() => {
         clearInterval(rollInterval);
-        diceValue = Math.floor(Math.random() * 6) + 1;
+        diceValue = predeterminedVal !== null ? predeterminedVal : (Math.floor(Math.random() * 6) + 1);
         diceBtn.innerText = diceValue;
         diceBtn.classList.remove('rolling');
         hasRolled = true;
         isAnimating = false;
+
+        if (isFriendMode && predeterminedVal === null) {
+            broadcastData({ type: 'DICE_ROLL', val: diceValue });
+        }
 
         checkMovePossibility();
     }, 500);
@@ -505,8 +661,14 @@ function checkMovePossibility() {
     }
 }
 
-async function handleTokenClick(color, index) {
-    if (!hasRolled || color !== playerColors[currentTurnIndex] || isAnimating) return;
+async function handleTokenClick(color, index, isRemote = false) {
+    if (!hasRolled || isAnimating) return;
+    if (color !== playerColors[currentTurnIndex]) return;
+    if (isFriendMode && !isRemote && currentTurnIndex !== myPlayerIndex) return;
+
+    if (isFriendMode && !isRemote) {
+        broadcastData({ type: 'TOKEN_MOVE', color: color, index: index });
+    }
 
     let tok = tokens[color][index];
     const pPath = paths[color];
