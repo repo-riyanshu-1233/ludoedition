@@ -79,7 +79,10 @@
         <div class="game-view" id="gameView">
             <div class="ludo-board animate-item delay-2" id="board">
                 <div class="house red-house" id="house-red">
-                    <div class="house-overlay-left" id="overlay-red"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-overlay-left" id="overlay-red">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-red">RED_LEFT</span>
+                    </div>
                     <div class="house-inner">
                         <div class="base-spot" id="red-base-0"></div>
                         <div class="base-spot" id="red-base-1"></div>
@@ -89,7 +92,10 @@
                 </div>
 
                 <div class="house green-house" id="house-green">
-                    <div class="house-overlay-left" id="overlay-green"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-overlay-left" id="overlay-green">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-green">GREEN_LEFT</span>
+                    </div>
                     <div class="house-inner">
                         <div class="base-spot" id="green-base-0"></div>
                         <div class="base-spot" id="green-base-1"></div>
@@ -99,7 +105,10 @@
                 </div>
 
                 <div class="house yellow-house" id="house-yellow">
-                    <div class="house-overlay-left" id="overlay-yellow"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-overlay-left" id="overlay-yellow">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-yellow">YELLOW_LEFT</span>
+                    </div>
                     <div class="house-inner">
                         <div class="base-spot" id="yellow-base-0"></div>
                         <div class="base-spot" id="yellow-base-1"></div>
@@ -109,7 +118,10 @@
                 </div>
 
                 <div class="house blue-house" id="house-blue">
-                    <div class="house-overlay-left" id="overlay-blue"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-overlay-left" id="overlay-blue">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-blue">BLUE_LEFT</span>
+                    </div>
                     <div class="house-inner">
                         <div class="base-spot" id="blue-base-0"></div>
                         <div class="base-spot" id="blue-base-1"></div>
@@ -128,7 +140,7 @@
             </div>
 
             <div class="controls animate-item delay-3">
-                <div class="dice" id="diceBtn" onclick="rollDice()">🎲</div>
+                <div class="dice" id="diceBtn" onclick="onDiceClick()">🎲</div>
                 <div class="turn-display" id="turnDisplay">Player Turn</div>
             </div>
         </div>
