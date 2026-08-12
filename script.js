@@ -17,7 +17,7 @@ function checkMaintenance() {
 }
 checkMaintenance();
 
-let gameActive = false; // Guard flag to halt async loops on game exit
+let gameActive = false;
 let activePlayersCount = 2;
 let isAIMode = false;
 let isFriendMode = false;
@@ -169,6 +169,8 @@ function syncGameState() {
 
 function handlePlayerLeft(idx) {
     if (idx < 0 || idx >= activePlayersCount) return;
+    if (playerLeftStatus[idx]) return;
+
     playerLeftStatus[idx] = true;
     const color = playerColors[idx];
     const pName = activePlayerNames[idx] || `PLAYER_${idx + 1}`;
@@ -186,7 +188,25 @@ function handlePlayerLeft(idx) {
     showToast(`${pName} Left`);
     renderTokens();
 
-    checkRemainingPlayersGameEnd();
+    let activeStillPlaying = [];
+    for (let i = 0; i < activePlayersCount; i++) {
+        if (!finishedPlayers[i] && !playerLeftStatus[i]) {
+            activeStillPlaying.push(i);
+        }
+    }
+
+    if (activeStillPlaying.length <= 1) {
+        if (activeStillPlaying.length === 1) {
+            const winnerIdx = activeStillPlaying[0];
+            if (!winnersList.includes(winnerIdx)) winnersList.push(winnerIdx);
+            for (let i = 0; i < activePlayersCount; i++) {
+                if (i !== winnerIdx && !winnersList.includes(i)) winnersList.push(i);
+            }
+        }
+        stopTurnTimer();
+        setTimeout(showFinalLeaderboard, 800);
+        return;
+    }
 
     if (currentTurnIndex === idx) {
         hasRolled = false;
@@ -301,19 +321,34 @@ function openPassNPlayPopup() {
     openModal(`
         <h3>Select Players</h3>
         <p style="margin: 10px 0; font-size:12px; color:#aaa">Pass N Play Local Mode</p>
-        <button class="action-btn" onclick="startPassNPlay(2)">2 Players</button>
-        <button class="action-btn" onclick="startPassNPlay(3)">3 Players</button>
-        <button class="action-btn" onclick="startPassNPlay(4)">4 Players</button>
+        <button class="action-btn" onclick="openPassNPlayNames(2)">2 Players</button>
+        <button class="action-btn" onclick="openPassNPlayNames(3)">3 Players</button>
+        <button class="action-btn" onclick="openPassNPlayNames(4)">4 Players</button>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Cancel</button>
     `);
 }
 
-function startPassNPlay(count) {
+function openPassNPlayNames(count) {
+    let inputsHTML = `<h3>Enter Player Names</h3>`;
+    for(let i = 1; i <= count; i++) {
+        inputsHTML += `<input type="text" id="pNameInput_${i}" class="modal-input" placeholder="Player ${i} Name" value="Player ${i}">`;
+    }
+    inputsHTML += `
+        <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="startPassNPlayWithNames(${count})">Start Game</button>
+        <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openPassNPlayPopup()">Back</button>
+    `;
+    openModal(inputsHTML);
+}
+
+function startPassNPlayWithNames(count) {
     activePlayersCount = count;
     isAIMode = false;
     isFriendMode = false;
     activePlayerNames = [];
-    for(let i=1; i<=count; i++) activePlayerNames.push(`Player ${i}`);
+    for(let i = 1; i <= count; i++) {
+        const val = document.getElementById(`pNameInput_${i}`).value.trim();
+        activePlayerNames.push(val || `Player ${i}`);
+    }
     launchGame();
 }
 
@@ -321,20 +356,22 @@ function openComputerMenuPopup() {
     openModal(`
         <h3>Vs Computer</h3>
         <p style="margin: 10px 0; font-size:12px; color:#aaa">1 Real Player + Smart AI Bots</p>
-        <button class="action-btn" onclick="startAIMode(2)">2 Players (1 User + 1 AI)</button>
-        <button class="action-btn" onclick="startAIMode(3)">3 Players (1 User + 2 AI)</button>
-        <button class="action-btn" onclick="startAIMode(4)">4 Players (1 User + 3 AI)</button>
+        <input type="text" id="aiPlayerName" class="modal-input" placeholder="Enter Your Name" value="You">
+        <button class="action-btn" onclick="startAIModeWithNames(2)">2 Players (You + 1 AI)</button>
+        <button class="action-btn" onclick="startAIModeWithNames(3)">3 Players (You + 2 AI)</button>
+        <button class="action-btn" onclick="startAIModeWithNames(4)">4 Players (You + 3 AI)</button>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Cancel</button>
     `);
 }
 
-function startAIMode(count) {
+function startAIModeWithNames(count) {
+    const userVal = document.getElementById('aiPlayerName').value.trim() || 'You';
     activePlayersCount = count;
     isAIMode = true;
     isFriendMode = false;
-    activePlayerNames = ['You (Player 1)'];
+    activePlayerNames = [userVal];
     for(let i = 2; i <= count; i++) {
-        activePlayerNames.push(`AI Bot ${i-1}`);
+        activePlayerNames.push(`Bot ${i-1}`);
     }
     launchGame();
 }
@@ -367,29 +404,33 @@ function handleCreateRoom() {
     });
 
     peer.on('connection', (conn) => {
-        if (roomPlayersList.length >= 4) {
-            conn.send({ type: 'REJECT', reason: 'Room Full' });
-            setTimeout(() => conn.close(), 500);
-            return;
-        }
-
         conn.on('data', (data) => {
             if (data.type === 'JOIN_REQ') {
+                if (roomPlayersList.length >= 4) {
+                    conn.send({ type: 'REJECT', reason: 'Room Full' });
+                    setTimeout(() => conn.close(), 500);
+                    return;
+                }
+
                 const newIdx = roomPlayersList.length;
                 conn.playerIndex = newIdx;
                 connections.push(conn);
                 roomPlayersList.push(data.name);
 
-                broadcastData({
-                    type: 'LOBBY_UPDATE',
-                    players: roomPlayersList
+                connections.forEach(c => {
+                    if (c && c.open) {
+                        c.send({
+                            type: 'LOBBY_UPDATE',
+                            players: roomPlayersList
+                        });
+                    }
                 });
 
                 renderWoodenLobbyList();
             } else {
                 handlePeerMessage(data, conn.playerIndex);
                 connections.forEach(c => {
-                    if (c !== conn && c.open) c.send(data);
+                    if (c !== conn && c && c.open) c.send(data);
                 });
             }
         });
@@ -397,8 +438,18 @@ function handleCreateRoom() {
         conn.on('close', () => {
             const idx = conn.playerIndex;
             if (idx !== undefined) {
-                handlePlayerLeft(idx);
-                broadcastData({ type: 'PLAYER_LEFT', playerIdx: idx });
+                if (gameActive) {
+                    handlePlayerLeft(idx);
+                    broadcastData({ type: 'PLAYER_LEFT', playerIdx: idx });
+                } else {
+                    roomPlayersList.splice(idx, 1);
+                    connections = connections.filter(c => c !== conn);
+                    connections.forEach((c, newI) => c.playerIndex = newI + 1);
+                    connections.forEach(c => {
+                        if (c && c.open) c.send({ type: 'LOBBY_UPDATE', players: roomPlayersList });
+                    });
+                    renderWoodenLobbyList();
+                }
             }
         });
     });
@@ -459,10 +510,12 @@ function submitJoinRoom() {
             } else if (data.type === 'GAME_START') {
                 activePlayerNames = data.players;
                 activePlayersCount = data.count;
+                playerColors = data.colors;
+                currentTurnIndex = data.startTurn;
                 isAIMode = false;
                 isFriendMode = true;
                 document.getElementById('lobbyView').style.display = 'none';
-                launchGame();
+                launchGame(true);
             } else {
                 handlePeerMessage(data);
             }
@@ -527,14 +580,29 @@ function startRoomGame() {
     isAIMode = false;
     isFriendMode = true;
 
+    setupRandomColorsAndTurn();
+
     broadcastData({
         type: 'GAME_START',
         players: activePlayerNames,
-        count: activePlayersCount
+        count: activePlayersCount,
+        colors: playerColors,
+        startTurn: currentTurnIndex
     });
 
     document.getElementById('lobbyView').style.display = 'none';
-    launchGame();
+    launchGame(true);
+}
+
+function setupRandomColorsAndTurn() {
+    const defaultColors = ['red', 'green', 'yellow', 'blue'];
+    let availableColors = defaultColors.slice(0, activePlayersCount);
+    for (let i = availableColors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [availableColors[i], availableColors[j]] = [availableColors[j], availableColors[i]];
+    }
+    playerColors = availableColors;
+    currentTurnIndex = Math.floor(Math.random() * activePlayersCount);
 }
 
 function openOnlineMenu() {
@@ -561,7 +629,7 @@ function startMatchmaking() {
     }, 3000);
 }
 
-function launchGame() {
+function launchGame(skipSetup = false) {
     closeModal();
     gameActive = true;
     document.getElementById('menuView').style.display = 'none';
@@ -574,7 +642,10 @@ function launchGame() {
     document.getElementById('topMenuBtn').style.display = 'none';
     document.getElementById('topExitBtn').style.display = 'flex';
     
-    currentTurnIndex = 0;
+    if (!skipSetup) {
+        setupRandomColorsAndTurn();
+    }
+
     hasRolled = false;
     isAnimating = false;
     playerLeftStatus = [false, false, false, false];
@@ -584,9 +655,20 @@ function launchGame() {
 
     if (!isFriendMode) myPlayerIndex = 0;
 
-    playerColors.forEach(c => {
+    ['red', 'green', 'yellow', 'blue'].forEach(c => {
         document.getElementById(`overlay-${c}`).style.display = 'none';
+        const tag = document.getElementById(`houseName${c.charAt(0).toUpperCase() + c.slice(1)}`);
+        if (tag) tag.style.display = 'none';
     });
+
+    for (let i = 0; i < activePlayersCount; i++) {
+        const c = playerColors[i];
+        const tag = document.getElementById(`houseName${c.charAt(0).toUpperCase() + c.slice(1)}`);
+        if (tag) {
+            tag.innerText = activePlayerNames[i] || `PLAYER ${i + 1}`;
+            tag.style.display = 'block';
+        }
+    }
 
     tokens = {
         red: [{pos: -1}, {pos: -1}, {pos: -1}, {pos: -1}],
@@ -599,6 +681,10 @@ function launchGame() {
     updateTurnUI();
     resetTurnTimer();
     setTimeout(renderTokens, 60);
+
+    if (isAIMode && currentTurnIndex !== 0) {
+        setTimeout(() => { if (gameActive) performDiceRoll(); }, 800);
+    }
 }
 
 function exitGameToHome() {
@@ -687,7 +773,6 @@ function renderTokens() {
             if (elem) {
                 elem.style.display = 'block';
 
-                // HIGHLIGHT FIX: Do not highlight pieces that are inside 'home'
                 const canBeMoved = hasRolled && (
                     (item.pos === -1 && diceValue === 6) ||
                     (typeof item.pos === 'number' && item.pos >= 0 && (item.pos + diceValue) < paths[item.color].length)
@@ -807,14 +892,12 @@ function checkMovePossibility() {
     if (movableTokenIndices.length === 0) {
         setTimeout(() => { if (gameActive) nextTurn(); }, 1000);
     } else if (movableTokenIndices.length === 1) {
-        // SINGLE TOKEN AUTO-MOVE RULE
         resetTurnTimer();
         setTimeout(() => {
             if (!gameActive) return;
             if (isAIMode && currentTurnIndex !== 0) {
                 autoCPUMove();
             } else if (isFriendMode && currentTurnIndex !== myPlayerIndex) {
-                // Wait for remote message or state sync
             } else {
                 handleTokenClick(color, movableTokenIndices[0]);
             }
@@ -969,7 +1052,10 @@ function checkRemainingPlayersGameEnd() {
     if (activeStillPlaying.length <= 1) {
         if (activeStillPlaying.length === 1) {
             const loserIdx = activeStillPlaying[0];
-            winnersList.push(loserIdx);
+            if (!winnersList.includes(loserIdx)) winnersList.push(loserIdx);
+            for (let i = 0; i < activePlayersCount; i++) {
+                if (i !== loserIdx && !winnersList.includes(i)) winnersList.push(i);
+            }
         }
 
         stopTurnTimer();
