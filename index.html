@@ -1,35 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ludo Game</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo King Style Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div id="maintenance-screen" class="hidden">
-    <div class="maintenance-box">
-      <h2>The game is being updated, please wait a while or check out other games</h2>
-      <button id="redirect-btn">Check</button>
+    <div class="app-container">
+        <div class="toast-banner" id="toastBanner">
+            <i class="fa-solid fa-circle-exclamation"></i> <span id="toastText">Player Left</span>
+        </div>
+
+        <div class="top-bar animate-item delay-1">
+            <div class="game-title">LUDO KING</div>
+            <div class="header-btn" id="topMenuBtn" onclick="openTopMenu()"><i class="fa-solid fa-bars"></i></div>
+            <div class="header-btn exit-btn" id="topExitBtn" style="display:none;" onclick="exitGameToHome()"><i class="fa-solid fa-door-open"></i> Exit</div>
+        </div>
+
+        <div class="menu-view" id="menuView">
+            <div class="logo-box animate-item delay-2">
+                <i class="fa-solid fa-crown" style="color: #ffcc00; font-size: 36px;"></i>
+                <div class="logo-title">LUDO</div>
+            </div>
+
+            <div class="option-btn animate-item delay-3" onclick="openPassNPlayPopup()">
+                <div class="btn-icon icon-pass"><i class="fa-solid fa-users"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PASS N PLAY</span>
+                    <span class="btn-sub">LOCAL 2, 3, 4 PLAYERS</span>
+                </div>
+            </div>
+
+            <div class="option-btn animate-item delay-4" onclick="openComputerMenuPopup()">
+                <div class="btn-icon icon-cpu"><i class="fa-solid fa-robot"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">VS COMPUTER</span>
+                    <span class="btn-sub">PLAY VS AI BOTS</span>
+                </div>
+            </div>
+
+            <div class="option-btn animate-item delay-5" onclick="openFriendMenu()">
+                <div class="btn-icon icon-friend"><i class="fa-solid fa-user-group"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PLAY WITH FRIENDS</span>
+                    <span class="btn-sub">PRIVATE ROOM BOARD</span>
+                </div>
+            </div>
+
+            <div class="option-btn animate-item delay-6" onclick="openOnlineMenu()">
+                <div class="btn-icon icon-online"><i class="fa-solid fa-globe"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PLAY ONLINE</span>
+                    <span class="btn-sub">PLAY GLOBALLY</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="lobby-view" id="lobbyView">
+            <div class="lobby-title animate-item delay-1">ROOM LOBBY</div>
+            <div class="lobby-code-box animate-item delay-2">CODE: <span id="lobbyCodeDisplay">0000</span></div>
+
+            <div class="wooden-board-container animate-item delay-3">
+                <div class="wooden-board-header">JOINED PLAYERS</div>
+                <div id="joinedPlayersList"></div>
+                <div id="waitingMsg" class="waiting-msg" style="display:none;">Waiting for friends to join...</div>
+            </div>
+
+            <div class="lobby-btn-group animate-item delay-4">
+                <button class="action-btn" id="startGameBtn" style="background:#2ecc71; color:#fff; box-shadow:0 4px 0 #1b9d52; display:none;" onclick="startRoomGame()">START GAME</button>
+                <button class="action-btn" style="background:#e74c3c; color:#fff; box-shadow:0 4px 0 #a93226;" onclick="closeLobbyAndReturn()">BACK</button>
+            </div>
+        </div>
+
+        <div class="game-view" id="gameView">
+            <div class="ludo-board animate-item delay-2" id="board">
+                <div class="house red-house" id="house-red">
+                    <div class="house-overlay-left" id="overlay-red"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="red-base-0"></div>
+                        <div class="base-spot" id="red-base-1"></div>
+                        <div class="base-spot" id="red-base-2"></div>
+                        <div class="base-spot" id="red-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house green-house" id="house-green">
+                    <div class="house-overlay-left" id="overlay-green"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="green-base-0"></div>
+                        <div class="base-spot" id="green-base-1"></div>
+                        <div class="base-spot" id="green-base-2"></div>
+                        <div class="base-spot" id="green-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house yellow-house" id="house-yellow">
+                    <div class="house-overlay-left" id="overlay-yellow"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="yellow-base-0"></div>
+                        <div class="base-spot" id="yellow-base-1"></div>
+                        <div class="base-spot" id="yellow-base-2"></div>
+                        <div class="base-spot" id="yellow-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house blue-house" id="house-blue">
+                    <div class="house-overlay-left" id="overlay-blue"><i class="fa-solid fa-user-slash"></i>LEFT</div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="blue-base-0"></div>
+                        <div class="base-spot" id="blue-base-1"></div>
+                        <div class="base-spot" id="blue-base-2"></div>
+                        <div class="base-spot" id="blue-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="center-home">
+                    <div class="tri-red"></div>
+                    <div class="tri-green"></div>
+                    <div class="tri-yellow"></div>
+                    <div class="tri-blue"></div>
+                    <div class="center-label">HOME</div>
+                </div>
+            </div>
+
+            <div class="controls animate-item delay-3">
+                <div class="dice" id="diceBtn" onclick="rollDice()">🎲</div>
+                <div class="turn-display" id="turnDisplay">Player Turn</div>
+            </div>
+        </div>
+
+        <div class="bottom-nav animate-item delay-7">
+            <div class="nav-item active" onclick="exitGameToHome()"><i class="fa-solid fa-house"></i><span>HOME</span></div>
+            <div class="nav-item" onclick="openHelpModal()"><i class="fa-solid fa-circle-question"></i><span>HELP</span></div>
+        </div>
     </div>
-  </div>
 
-  <div id="game-container">
-    <div id="status-bar">Player 1's Turn</div>
-
-    <div id="board">
-      <div id="p1-token" class="token p1" onclick="handleTokenMove(1)">P1</div>
-      <div id="p2-token" class="token p2" onclick="handleTokenMove(2)">P2</div>
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box" id="modalBox"></div>
     </div>
 
-    <div class="dice-wrapper">
-      <div id="dice" onclick="rollDice()">
-        <span id="dice-value">🎲</span>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
