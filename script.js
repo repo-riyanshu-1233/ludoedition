@@ -1097,12 +1097,12 @@ function showFinalLeaderboard() {
         <div class="leaderboard-list">
     `;
 
-    const rankTitles = ['🥇 1st Place', '🥈 2nd Place', '🥉 3rd Place', '💀 Loser'];
+    const rankTitles = ['🥇 1st Place', '🥈 2nd Place', '🥉 3rd Place', ' Loser'];
     const rankClasses = ['rank-1', 'rank-2', 'rank-3', 'rank-loser'];
 
     winnersList.forEach((pIdx, idx) => {
         const pName = activePlayerNames[pIdx] || `Player ${pIdx + 1}`;
-        const title = idx === winnersList.length - 1 && activePlayersCount > 1 ? '💀 Loser' : (rankTitles[idx] || `${idx + 1}th Place`);
+        const title = idx === winnersList.length - 1 && activePlayersCount > 1 ? ' Loser' : (rankTitles[idx] || `${idx + 1}th Place`);
         const cls = idx === winnersList.length - 1 && activePlayersCount > 1 ? 'rank-loser' : (rankClasses[idx] || 'rank-2');
 
         lbHTML += `
