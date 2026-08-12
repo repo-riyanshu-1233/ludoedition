@@ -2,130 +2,162 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ludo Multiplayer</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo King Style Game</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="top-bar">
-        <button id="topMenuBtn" class="icon-btn" onclick="openTopMenu()"><i class="fa-solid fa-bars"></i></button>
-        <button id="topExitBtn" class="icon-btn exit-btn" onclick="exitGameToHome()" style="display: none;"><i class="fa-solid fa-house"></i> Exit</button>
-        <div class="app-title">LUDO CLASSIC</div>
-        <button class="icon-btn" onclick="openHelpModal()"><i class="fa-solid fa-circle-question"></i></button>
-    </div>
-
-    <div id="menuView" class="view-container">
-        <div class="logo-box animate-item">
-            <i class="fa-solid fa-chess-king logo-icon"></i>
-            <h1>LUDO CLASSIC</h1>
-        </div>
-        <div class="menu-buttons animate-item">
-            <button class="menu-btn online-btn" onclick="openOnlineSetup()">
-                <i class="fa-solid fa-globe"></i>
-                <span>PLAY ONLINE</span>
-            </button>
-            <button class="menu-btn friend-btn" onclick="openFriendSetup()">
-                <i class="fa-solid fa-users"></i>
-                <span>PLAY WITH FRIENDS</span>
-            </button>
-            <button class="menu-btn computer-btn" onclick="openComputerSetup()">
-                <i class="fa-solid fa-robot"></i>
-                <span>VS COMPUTER</span>
-            </button>
-            <button class="menu-btn pass-btn" onclick="openPassSetup()">
-                <i class="fa-solid fa-people-arrows"></i>
-                <span>PASS N PLAY</span>
-            </button>
-        </div>
-    </div>
-
-    <div id="lobbyView" class="view-container" style="display: none;">
-        <div class="lobby-card animate-item">
-            <h2>ROOM LOBBY</h2>
-            <div class="room-code-box">
-                <span>ROOM CODE:</span>
-                <strong id="lobbyCodeDisplay">------</strong>
-            </div>
-            <div id="joinedPlayersList" class="players-list"></div>
-            <p id="waitingMsg" class="waiting-text">Waiting for players to join...</p>
-            <button id="startGameBtn" class="action-btn start-btn" onclick="startRoomGame()" style="display: none;">START GAME</button>
-            <button class="action-btn back-btn" onclick="closeLobbyAndReturn()">LEAVE ROOM</button>
-        </div>
-    </div>
-
-    <div id="gameView" class="view-container" style="display: none;">
-        <div class="game-header animate-item">
-            <div id="turnDisplay" class="turn-text">Turn: -</div>
-            <div class="timer-box"><i class="fa-solid fa-clock"></i> <span id="timerSec">30</span>s</div>
+    <div class="app-container">
+        <div class="toast-banner" id="toastBanner">
+            <i class="fa-solid fa-circle-exclamation"></i> <span id="toastText">Player Left</span>
         </div>
 
-        <div id="board" class="ludo-board animate-item">
-            <div id="home-center" class="home-center">
-                <div id="home-tri-red" class="home-tri tri-red"></div>
-                <div id="home-tri-green" class="home-tri tri-green"></div>
-                <div id="home-tri-yellow" class="home-tri tri-yellow"></div>
-                <div id="home-tri-blue" class="home-tri tri-blue"></div>
+        <div class="top-bar animate-item delay-1">
+            <div class="game-title">LUDO KING</div>
+            <div class="header-btn" id="topMenuBtn" onclick="openTopMenu()"><i class="fa-solid fa-bars"></i></div>
+            <div class="header-btn exit-btn" id="topExitBtn" style="display:none;" onclick="exitGameToHome()"><i class="fa-solid fa-door-open"></i> Exit</div>
+        </div>
+
+        <div class="menu-view" id="menuView">
+            <div class="logo-box animate-item delay-2">
+                <i class="fa-solid fa-crown" style="color: #ffcc00; font-size: 36px;"></i>
+                <div class="logo-title">LUDO</div>
             </div>
 
-            <div class="base red-base">
-                <div id="name-tag-red" class="base-name-tag top-tag">Red</div>
-                <div class="base-inner">
-                    <div class="spot" id="red-base-0"></div>
-                    <div class="spot" id="red-base-1"></div>
-                    <div class="spot" id="red-base-2"></div>
-                    <div class="spot" id="red-base-3"></div>
+            <div class="option-btn animate-item delay-3" onclick="openPassNPlayPopup()">
+                <div class="btn-icon icon-pass"><i class="fa-solid fa-users"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PASS N PLAY</span>
+                    <span class="btn-sub">LOCAL 2, 3, 4 PLAYERS</span>
                 </div>
-                <div class="left-overlay" id="overlay-red"><span id="left-text-red">LEFT</span></div>
             </div>
 
-            <div class="base green-base">
-                <div id="name-tag-green" class="base-name-tag top-tag">Green</div>
-                <div class="base-inner">
-                    <div class="spot" id="green-base-0"></div>
-                    <div class="spot" id="green-base-1"></div>
-                    <div class="spot" id="green-base-2"></div>
-                    <div class="spot" id="green-base-3"></div>
+            <div class="option-btn animate-item delay-4" onclick="openComputerMenuPopup()">
+                <div class="btn-icon icon-cpu"><i class="fa-solid fa-robot"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">VS COMPUTER</span>
+                    <span class="btn-sub">PLAY VS AI BOTS</span>
                 </div>
-                <div class="left-overlay" id="overlay-green"><span id="left-text-green">LEFT</span></div>
             </div>
 
-            <div class="base yellow-base">
-                <div id="name-tag-yellow" class="base-name-tag bottom-tag">Yellow</div>
-                <div class="base-inner">
-                    <div class="spot" id="yellow-base-0"></div>
-                    <div class="spot" id="yellow-base-1"></div>
-                    <div class="spot" id="yellow-base-2"></div>
-                    <div class="spot" id="yellow-base-3"></div>
+            <div class="option-btn animate-item delay-5" onclick="openFriendMenu()">
+                <div class="btn-icon icon-friend"><i class="fa-solid fa-user-group"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PLAY WITH FRIENDS</span>
+                    <span class="btn-sub">PRIVATE ROOM BOARD</span>
                 </div>
-                <div class="left-overlay" id="overlay-yellow"><span id="left-text-yellow">LEFT</span></div>
             </div>
 
-            <div class="base blue-base">
-                <div id="name-tag-blue" class="base-name-tag bottom-tag">Blue</div>
-                <div class="base-inner">
-                    <div class="spot" id="blue-base-0"></div>
-                    <div class="spot" id="blue-base-1"></div>
-                    <div class="spot" id="blue-base-2"></div>
-                    <div class="spot" id="blue-base-3"></div>
+            <div class="option-btn animate-item delay-6" onclick="openOnlineMenu()">
+                <div class="btn-icon icon-online"><i class="fa-solid fa-globe"></i></div>
+                <div class="btn-text">
+                    <span class="btn-title">PLAY ONLINE</span>
+                    <span class="btn-sub">PLAY GLOBALLY</span>
                 </div>
-                <div class="left-overlay" id="overlay-blue"><span id="left-text-blue">LEFT</span></div>
             </div>
         </div>
 
-        <div class="controls-bar animate-item">
-            <button id="diceBtn" class="dice-btn" onclick="onDiceClick()">🎲</button>
+        <div class="lobby-view" id="lobbyView">
+            <div class="lobby-title animate-item delay-1">ROOM LOBBY</div>
+            <div class="lobby-code-box animate-item delay-2">CODE: <span id="lobbyCodeDisplay">0000</span></div>
+
+            <div class="wooden-board-container animate-item delay-3">
+                <div class="wooden-board-header">JOINED PLAYERS</div>
+                <div id="joinedPlayersList"></div>
+                <div id="waitingMsg" class="waiting-msg" style="display:none;">Waiting for friends to join...</div>
+            </div>
+
+            <div class="lobby-btn-group animate-item delay-4">
+                <button class="action-btn" id="startGameBtn" style="background:#2ecc71; color:#fff; box-shadow:0 4px 0 #1b9d52; display:none;" onclick="startRoomGame()">START GAME</button>
+                <button class="action-btn" style="background:#e74c3c; color:#fff; box-shadow:0 4px 0 #a93226;" onclick="closeLobbyAndReturn()">BACK</button>
+            </div>
+        </div>
+
+        <div class="game-view" id="gameView">
+            <div class="ludo-board animate-item delay-2" id="board">
+                <div class="house red-house" id="house-red">
+                    <div class="house-name-tag" id="houseNameRed">RED</div>
+                    <div class="house-overlay-left" id="overlay-red">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-red">RED_LEFT</span>
+                    </div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="red-base-0"></div>
+                        <div class="base-spot" id="red-base-1"></div>
+                        <div class="base-spot" id="red-base-2"></div>
+                        <div class="base-spot" id="red-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house green-house" id="house-green">
+                    <div class="house-name-tag" id="houseNameGreen">GREEN</div>
+                    <div class="house-overlay-left" id="overlay-green">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-green">GREEN_LEFT</span>
+                    </div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="green-base-0"></div>
+                        <div class="base-spot" id="green-base-1"></div>
+                        <div class="base-spot" id="green-base-2"></div>
+                        <div class="base-spot" id="green-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house yellow-house" id="house-yellow">
+                    <div class="house-name-tag" id="houseNameYellow">YELLOW</div>
+                    <div class="house-overlay-left" id="overlay-yellow">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-yellow">YELLOW_LEFT</span>
+                    </div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="yellow-base-0"></div>
+                        <div class="base-spot" id="yellow-base-1"></div>
+                        <div class="base-spot" id="yellow-base-2"></div>
+                        <div class="base-spot" id="yellow-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="house blue-house" id="house-blue">
+                    <div class="house-name-tag" id="houseNameBlue">BLUE</div>
+                    <div class="house-overlay-left" id="overlay-blue">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <span id="left-text-blue">BLUE_LEFT</span>
+                    </div>
+                    <div class="house-inner">
+                        <div class="base-spot" id="blue-base-0"></div>
+                        <div class="base-spot" id="blue-base-1"></div>
+                        <div class="base-spot" id="blue-base-2"></div>
+                        <div class="base-spot" id="blue-base-3"></div>
+                    </div>
+                </div>
+
+                <div class="center-home" id="centerHome">
+                    <div class="tri-red" id="home-tri-red"></div>
+                    <div class="tri-green" id="home-tri-green"></div>
+                    <div class="tri-yellow" id="home-tri-yellow"></div>
+                    <div class="tri-blue" id="home-tri-blue"></div>
+                    <div class="center-label">HOME</div>
+                </div>
+            </div>
+
+            <div class="controls animate-item delay-3">
+                <div class="timer-badge" id="turnTimerBadge"><i class="fa-solid fa-stopwatch"></i> <span id="timerSec">50</span>s</div>
+                <div class="dice" id="diceBtn" onclick="onDiceClick()">🎲</div>
+                <div class="turn-display" id="turnDisplay">Player Turn</div>
+            </div>
+        </div>
+
+        <div class="bottom-nav animate-item delay-7">
+            <div class="nav-item active" onclick="exitGameToHome()"><i class="fa-solid fa-house"></i><span>HOME</span></div>
+            <div class="nav-item" onclick="openHelpModal()"><i class="fa-solid fa-circle-question"></i><span>HELP</span></div>
         </div>
     </div>
 
-    <div id="modalOverlay" class="modal-overlay" style="display: none;">
-        <div id="modalBox" class="modal-card"></div>
-    </div>
-
-    <div id="toastBanner" class="toast-banner">
-        <span id="toastText">Notification text</span>
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box" id="modalBox"></div>
     </div>
 
     <script src="script.js"></script>
