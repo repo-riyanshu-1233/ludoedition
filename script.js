@@ -28,6 +28,13 @@ let currentTurnIndex = 0;
 let diceValue = 0;
 let hasRolled = false;
 
+let winnersList = [];
+let finishedPlayers = [false, false, false, false];
+let isSpectating = false;
+
+let turnTimerInterval = null;
+let turnTimeRemaining = 50;
+
 let currentRoomCode = '';
 let roomPlayersList = [];
 
@@ -160,6 +167,8 @@ function handlePlayerLeft(idx) {
     showToast(`${pName} Left`);
     renderTokens();
 
+    checkRemainingPlayersGameEnd();
+
     if (currentTurnIndex === idx) {
         hasRolled = false;
         isAnimating = false;
@@ -175,6 +184,30 @@ function handlePeerMessage(data, senderIdx) {
     } else if (data.type === 'PLAYER_LEFT') {
         handlePlayerLeft(data.playerIdx);
     }
+}
+
+function resetTurnTimer() {
+    clearInterval(turnTimerInterval);
+    turnTimeRemaining = 50;
+    const secSpan = document.getElementById('timerSec');
+    if (secSpan) secSpan.innerText = turnTimeRemaining;
+
+    turnTimerInterval = setInterval(() => {
+        turnTimeRemaining--;
+        if (secSpan) secSpan.innerText = turnTimeRemaining;
+
+        if (turnTimeRemaining <= 0) {
+            clearInterval(turnTimerInterval);
+            showToast(`${activePlayerNames[currentTurnIndex] || 'Player'} Time Out!`);
+            hasRolled = false;
+            isAnimating = false;
+            nextTurn();
+        }
+    }, 1000);
+}
+
+function stopTurnTimer() {
+    clearInterval(turnTimerInterval);
 }
 
 function openTopMenu() {
@@ -201,7 +234,7 @@ function openAboutUs() {
     openModal(`
         <h3>About Us</h3>
         <p style="margin:15px 0; font-size:13px; color:#ddd; line-height:1.6;">
-            Welcome to Ludo King Style Game! Designed with full smooth fade-in animations, local multiplayer, multi-bot AI mode, and custom room features.
+            Welcome to Ludo King Style Game! Designed with smooth animations, local multiplayer, multi-bot AI mode, 50s turn timer, smart AI chasing, and custom room features.
         </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openTopMenu()">Back</button>
     `);
@@ -222,8 +255,9 @@ function openHelpModal() {
         <p style="margin:15px 0; font-size:12px; color:#ccc; text-align:left; line-height:1.5;">
             1. Roll 6 to move token out of base.<br>
             2. Tap token to move step-by-step.<br>
-            3. Eliminate opponent tokens by landing on them.<br>
-            4. Reach center HOME to win!
+            3. Eliminate opponent tokens to get an extra turn.<br>
+            4. Reach center HOME to get an extra turn.<br>
+            5. You have 50s for each turn. Reach HOME with all 4 tokens to WIN!
         </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Close</button>
     `);
@@ -252,7 +286,7 @@ function startPassNPlay(count) {
 function openComputerMenuPopup() {
     openModal(`
         <h3>Vs Computer</h3>
-        <p style="margin: 10px 0; font-size:12px; color:#aaa">1 Real Player + AI Bots</p>
+        <p style="margin: 10px 0; font-size:12px; color:#aaa">1 Real Player + Smart AI Bots</p>
         <button class="action-btn" onclick="startAIMode(2)">2 Players (1 User + 1 AI)</button>
         <button class="action-btn" onclick="startAIMode(3)">3 Players (1 User + 2 AI)</button>
         <button class="action-btn" onclick="startAIMode(4)">4 Players (1 User + 3 AI)</button>
@@ -509,6 +543,9 @@ function launchGame() {
     hasRolled = false;
     isAnimating = false;
     playerLeftStatus = [false, false, false, false];
+    finishedPlayers = [false, false, false, false];
+    winnersList = [];
+    isSpectating = false;
 
     if (!isFriendMode) myPlayerIndex = 0;
 
@@ -525,10 +562,12 @@ function launchGame() {
 
     createTokenDOM();
     updateTurnUI();
+    resetTurnTimer();
     setTimeout(renderTokens, 60);
 }
 
 function exitGameToHome() {
+    stopTurnTimer();
     if (peer) peer.destroy();
     document.getElementById('menuView').style.display = 'flex';
     document.getElementById('gameView').style.display = 'none';
@@ -560,6 +599,7 @@ function renderTokens() {
     if (document.getElementById('gameView').style.display !== 'flex') return;
 
     const spotGroup = {};
+    const currentActiveColor = playerColors[currentTurnIndex];
 
     for (let i = 0; i < activePlayersCount; i++) {
         const color = playerColors[i];
@@ -577,7 +617,7 @@ function renderTokens() {
             if (tok.pos === -1) {
                 key = `${color}-base-${index}`;
             } else if (tok.pos === 'home') {
-                key = 'home';
+                key = `home-${color}`;
             } else {
                 key = paths[color][tok.pos];
             }
@@ -589,27 +629,41 @@ function renderTokens() {
 
     Object.keys(spotGroup).forEach(key => {
         const group = spotGroup[key];
-        let targetSpot;
 
-        if (key.includes('base')) {
-            targetSpot = document.getElementById(key);
-        } else if (key === 'home') {
-            targetSpot = document.querySelector('.center-home');
-        } else {
-            targetSpot = document.getElementById(key);
-        }
+        group.sort((a, b) => {
+            if (a.color === currentActiveColor) return 1;
+            if (b.color === currentActiveColor) return -1;
+            return 0;
+        });
 
         group.forEach((item, grpIdx) => {
+            let targetSpot;
+            if (key.includes('base')) {
+                targetSpot = document.getElementById(key);
+            } else if (key.startsWith('home-')) {
+                const homeColor = key.split('-')[1];
+                targetSpot = document.getElementById(`home-tri-${homeColor}`);
+            } else {
+                targetSpot = document.getElementById(key);
+            }
+
             const elem = document.getElementById(`tok-${item.color}-${item.index}`);
             if (elem) {
                 elem.style.display = 'block';
-                placeTokenCentered(elem, targetSpot, grpIdx, group.length);
+
+                if (item.color === currentActiveColor && !finishedPlayers[currentTurnIndex]) {
+                    elem.classList.add('active-turn-token');
+                } else {
+                    elem.classList.remove('active-turn-token');
+                }
+
+                placeTokenCentered(elem, targetSpot, grpIdx, group.length, item.color, key);
             }
         });
     });
 }
 
-function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1) {
+function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1, color = 'red', key = '') {
     if (!spotElem) return;
     const rect = spotElem.getBoundingClientRect();
     const board = document.getElementById('board');
@@ -621,8 +675,19 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1) {
     let centerX = (rect.left - boardRect.left - borderLeft) + (rect.width / 2);
     let centerY = (rect.top - boardRect.top - borderTop) + (rect.height / 2);
 
-    if (totalInGroup > 1 && !spotElem.id.includes('base')) {
-        const offsetVal = 4;
+    if (key.startsWith('home-')) {
+        const offsets = {
+            red:    [{x:-12, y:-6}, {x:-12, y:6}, {x:-20, y:0}, {x:-6, y:0}],
+            green:  [{x:-6, y:-12}, {x:6, y:-12}, {x:0, y:-20}, {x:0, y:-6}],
+            yellow: [{x:12, y:-6}, {x:12, y:6}, {x:20, y:0}, {x:6, y:0}],
+            blue:   [{x:-6, y:12}, {x:6, y:12}, {x:0, y:20}, {x:0, y:6}]
+        };
+        const cOffsets = offsets[color] || offsets.red;
+        const off = cOffsets[grpIdx % cOffsets.length];
+        centerX += off.x;
+        centerY += off.y;
+    } else if (totalInGroup > 1 && !spotElem.id.includes('base')) {
+        const offsetVal = 5;
         const offsets = [
             { x: -offsetVal, y: -offsetVal },
             { x: offsetVal, y: offsetVal },
@@ -634,12 +699,15 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1) {
         centerY += off.y;
     }
 
+    tokenElem.style.zIndex = color === playerColors[currentTurnIndex] ? (50 + grpIdx) : (10 + grpIdx);
+
     tokenElem.style.left = centerX + 'px';
     tokenElem.style.top = centerY + 'px';
 }
 
 function onDiceClick() {
     if (hasRolled || isAnimating) return;
+    if (finishedPlayers[currentTurnIndex]) return;
     if (isAIMode && currentTurnIndex !== 0) return;
     if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
 
@@ -652,6 +720,7 @@ function onDiceClick() {
 }
 
 function performDiceRoll(predeterminedVal = null) {
+    stopTurnTimer();
     isAnimating = true;
     const diceBtn = document.getElementById('diceBtn');
     diceBtn.classList.add('rolling');
@@ -688,26 +757,39 @@ function checkMovePossibility() {
 
     if (!canMove) {
         setTimeout(nextTurn, 1000);
-    } else if (isAIMode && currentTurnIndex !== 0) {
-        setTimeout(autoCPUMove, 600);
+    } else {
+        resetTurnTimer();
+        if (isAIMode && currentTurnIndex !== 0) {
+            setTimeout(autoCPUMove, 600);
+        }
     }
 }
 
 async function handleTokenClick(color, index, isRemote = false, isAICall = false) {
     if (!hasRolled || isAnimating) return;
     if (color !== playerColors[currentTurnIndex]) return;
+    if (finishedPlayers[currentTurnIndex]) return;
     if (isFriendMode && !isRemote && currentTurnIndex !== myPlayerIndex) return;
     if (isAIMode && currentTurnIndex !== 0 && !isAICall) return;
-
-    if (isFriendMode && !isRemote) {
-        broadcastData({ type: 'TOKEN_MOVE', color: color, index: index });
-    }
 
     let tok = tokens[color][index];
     const pPath = paths[color];
     const elem = document.getElementById(`tok-${color}-${index}`);
 
+    let canBeMoved = false;
+    if (tok.pos === -1 && diceValue === 6) canBeMoved = true;
+    if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) canBeMoved = true;
+
+    if (!canBeMoved) return;
+
+    stopTurnTimer();
+
+    if (isFriendMode && !isRemote) {
+        broadcastData({ type: 'TOKEN_MOVE', color: color, index: index });
+    }
+
     let eliminated = false;
+    let homeReachedExtraTurn = false;
 
     if (tok.pos === -1 && diceValue === 6) {
         isAnimating = true;
@@ -729,12 +811,16 @@ async function handleTokenClick(color, index, isRemote = false, isAICall = false
             await sleep(200);
         }
 
-        if (tok.pos === pPath.length - 1) tok.pos = 'home';
+        if (tok.pos === pPath.length - 1) {
+            tok.pos = 'home';
+            homeReachedExtraTurn = true;
+            showToast(`${activePlayerNames[currentTurnIndex] || 'Player'} reached HOME! +1 Turn`);
+        }
         
         elem.classList.remove('moving');
         eliminated = await checkElimination(color, tok.pos);
         isAnimating = false;
-        finishMove(color, eliminated);
+        finishMove(color, eliminated || homeReachedExtraTurn);
     }
 }
 
@@ -746,7 +832,7 @@ async function checkElimination(currentColor, pos) {
     let hasEliminated = false;
 
     for (let i = 0; i < activePlayersCount; i++) {
-        if (playerLeftStatus[i]) continue;
+        if (playerLeftStatus[i] || finishedPlayers[i]) continue;
         const enemyColor = playerColors[i];
         if (enemyColor === currentColor) continue;
 
@@ -756,12 +842,13 @@ async function checkElimination(currentColor, pos) {
                 const enemyCell = paths[enemyColor][enemyTok.pos];
                 if (enemyCell === currentCell) {
                     hasEliminated = true;
+                    showToast(`${activePlayerNames[currentTurnIndex] || 'Player'} eliminated ${activePlayerNames[i]}! +1 Turn`);
                     const enemyElem = document.getElementById(`tok-${enemyColor}-${j}`);
                     enemyElem.classList.add('moving');
                     while (enemyTok.pos > 0) {
                         enemyTok.pos--;
                         renderTokens();
-                        await sleep(50);
+                        await sleep(40);
                     }
                     enemyTok.pos = -1;
                     renderTokens();
@@ -775,27 +862,107 @@ async function checkElimination(currentColor, pos) {
 }
 
 function checkWinner(color) {
+    const pIndex = playerColors.indexOf(color);
+    if (finishedPlayers[pIndex]) return true;
+
     const allHome = tokens[color].every(tok => tok.pos === 'home');
     if (allHome) {
-        const pIndex = playerColors.indexOf(color);
-        const name = activePlayerNames[pIndex] || `Player ${pIndex + 1}`;
-        openModal(`
-            <h2 style="color:#ffd700; margin-bottom:10px;">🏆 WINNER! 🏆</h2>
-            <p style="font-size:18px; color:#fff; margin-bottom:20px;"><b>${name}</b> HAS WON THE GAME!</p>
-            <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="exitGameToHome()">PLAY AGAIN</button>
-        `);
+        finishedPlayers[pIndex] = true;
+        winnersList.push(pIndex);
+
+        const rankSuffixes = ['1st', '2nd', '3rd', '4th'];
+        const positionStr = rankSuffixes[winnersList.length - 1] || `${winnersList.length}th`;
+        const winnerName = activePlayerNames[pIndex] || `Player ${pIndex + 1}`;
+
+        if (pIndex === myPlayerIndex) {
+            openModal(`
+                <h2 style="color:#ffd700; margin-bottom:10px;">🏆 CONGRATULATIONS! 🏆</h2>
+                <p style="font-size:16px; color:#fff; margin-bottom:20px;">You win at <b>${positionStr}</b> Position!</p>
+                <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="spectateGame()">SPECTATE / WATCH GAME</button>
+                <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="exitGameToHome()">EXIT TO HOME</button>
+            `);
+        } else {
+            showToast(`${winnerName} finished at ${positionStr} Place!`);
+        }
+
+        checkRemainingPlayersGameEnd();
         return true;
     }
     return false;
 }
 
+function spectateGame() {
+    isSpectating = true;
+    closeModal();
+}
+
+function checkRemainingPlayersGameEnd() {
+    let activeStillPlaying = [];
+    for (let i = 0; i < activePlayersCount; i++) {
+        if (!finishedPlayers[i] && !playerLeftStatus[i]) {
+            activeStillPlaying.push(i);
+        }
+    }
+
+    if (activeStillPlaying.length <= 1) {
+        if (activeStillPlaying.length === 1) {
+            const loserIdx = activeStillPlaying[0];
+            winnersList.push(loserIdx);
+        }
+
+        stopTurnTimer();
+        setTimeout(showFinalLeaderboard, 1200);
+        return true;
+    }
+    return false;
+}
+
+function showFinalLeaderboard() {
+    stopTurnTimer();
+    let lbHTML = `
+        <h2 style="color:#ffd700; margin-bottom:10px;"><i class="fa-solid fa-trophy"></i> GAME OVER</h2>
+        <p style="font-size:13px; color:#ccc; margin-bottom:15px;">Final Leaderboard Ranks</p>
+        <div class="leaderboard-list">
+    `;
+
+    const rankTitles = ['🥇 1st Place', '🥈 2nd Place', '🥉 3rd Place', '💀 Loser'];
+    const rankClasses = ['rank-1', 'rank-2', 'rank-3', 'rank-loser'];
+
+    winnersList.forEach((pIdx, idx) => {
+        const pName = activePlayerNames[pIdx] || `Player ${pIdx + 1}`;
+        const title = idx === winnersList.length - 1 && activePlayersCount > 1 ? '💀 Loser' : (rankTitles[idx] || `${idx + 1}th Place`);
+        const cls = idx === winnersList.length - 1 && activePlayersCount > 1 ? 'rank-loser' : (rankClasses[idx] || 'rank-2');
+
+        lbHTML += `
+            <div class="lb-card ${cls}">
+                <span>${title}</span>
+                <span>${pName}</span>
+            </div>
+        `;
+    });
+
+    lbHTML += `
+        </div>
+        <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="exitGameToHome()">MAIN MENU</button>
+    `;
+
+    openModal(lbHTML);
+}
+
 function finishMove(color, extraTurnGranted = false) {
     hasRolled = false;
 
-    if (checkWinner(color)) return;
+    if (checkWinner(color)) {
+        if (!checkRemainingPlayersGameEnd()) {
+            nextTurn();
+        }
+        return;
+    }
 
     if (diceValue === 6 || extraTurnGranted) {
         document.getElementById('diceBtn').innerText = '🎲';
+        renderTokens();
+        resetTurnTimer();
         if (isAIMode && currentTurnIndex !== 0) {
             setTimeout(performDiceRoll, 600);
         }
@@ -809,14 +976,19 @@ function nextTurn() {
     do {
         currentTurnIndex = (currentTurnIndex + 1) % activePlayersCount;
         loopCount++;
-    } while (playerLeftStatus[currentTurnIndex] && loopCount < activePlayersCount);
+    } while ((playerLeftStatus[currentTurnIndex] || finishedPlayers[currentTurnIndex]) && loopCount < activePlayersCount);
 
     hasRolled = false;
     isAnimating = false;
     document.getElementById('diceBtn').innerText = '🎲';
     updateTurnUI();
+    renderTokens();
 
-    if (isAIMode && currentTurnIndex !== 0 && !playerLeftStatus[currentTurnIndex]) {
+    if (checkRemainingPlayersGameEnd()) return;
+
+    resetTurnTimer();
+
+    if (isAIMode && currentTurnIndex !== 0 && !playerLeftStatus[currentTurnIndex] && !finishedPlayers[currentTurnIndex]) {
         setTimeout(performDiceRoll, 600);
     }
 }
@@ -831,42 +1003,67 @@ function updateTurnUI() {
 }
 
 async function autoCPUMove() {
-    if (!isAIMode || currentTurnIndex === 0) return;
+    if (!isAIMode || currentTurnIndex === 0 || finishedPlayers[currentTurnIndex]) return;
 
     const currentBotColor = playerColors[currentTurnIndex];
     const botTokens = tokens[currentBotColor];
     const pPath = paths[currentBotColor];
 
     let chosenIndex = -1;
+    let highestScore = -9999;
 
     for (let i = 0; i < botTokens.length; i++) {
         let tok = botTokens[i];
-        if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) {
-            let targetCell = pPath[tok.pos + diceValue];
-            if (!safeCells.includes(targetCell)) {
-                for (let enemyIdx = 0; enemyIdx < activePlayersCount; enemyIdx++) {
-                    if (enemyIdx === currentTurnIndex || playerLeftStatus[enemyIdx]) continue;
-                    let enemyColor = playerColors[enemyIdx];
+        let score = 0;
+
+        if (tok.pos === -1) {
+            if (diceValue === 6) score = 400;
+            else continue;
+        } else if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) {
+            const targetPos = tok.pos + diceValue;
+            const targetCell = pPath[targetPos];
+
+            if (targetPos < pPath.length - 1 && !safeCells.includes(targetCell)) {
+                for (let eIdx = 0; eIdx < activePlayersCount; eIdx++) {
+                    if (eIdx === currentTurnIndex || playerLeftStatus[eIdx] || finishedPlayers[eIdx]) continue;
+                    let enemyColor = playerColors[eIdx];
                     if (tokens[enemyColor].some(eTok => eTok.pos >= 0 && eTok.pos !== 'home' && paths[enemyColor][eTok.pos] === targetCell)) {
-                        chosenIndex = i;
-                        break;
+                        score += 2000;
                     }
                 }
             }
+
+            if (targetPos === pPath.length - 1) {
+                score += 1500;
+            }
+
+            if (safeCells.includes(targetCell)) {
+                score += 500;
+            }
+
+            for (let eIdx = 0; eIdx < activePlayersCount; eIdx++) {
+                if (eIdx === currentTurnIndex || playerLeftStatus[eIdx] || finishedPlayers[eIdx]) continue;
+                let enemyColor = playerColors[eIdx];
+                tokens[enemyColor].forEach(eTok => {
+                    if (eTok.pos >= 0 && eTok.pos !== 'home') {
+                        let eCell = paths[enemyColor][eTok.pos];
+                        let dist = pPath.indexOf(eCell) - targetPos;
+                        if (dist > 0 && dist <= 6) {
+                            score += 350;
+                        }
+                    }
+                });
+            }
+
+            score += targetPos * 10;
+        } else {
+            continue;
         }
-        if (chosenIndex !== -1) break;
-    }
 
-    if (chosenIndex === -1 && diceValue === 6) {
-        chosenIndex = botTokens.findIndex(tok => tok.pos === -1);
-    }
-
-    if (chosenIndex === -1) {
-        chosenIndex = botTokens.findIndex(tok => {
-            if (tok.pos === -1 && diceValue === 6) return true;
-            if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) return true;
-            return false;
-        });
+        if (score > highestScore) {
+            highestScore = score;
+            chosenIndex = i;
+        }
     }
 
     if (chosenIndex !== -1) {
