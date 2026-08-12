@@ -211,7 +211,9 @@ function handlePlayerLeft(idx) {
     if (currentTurnIndex === idx) {
         hasRolled = false;
         isAnimating = false;
-        nextTurn();
+        if (!isFriendMode || currentTurnIndex === myPlayerIndex) {
+            nextTurn();
+        }
     }
 }
 
@@ -230,8 +232,12 @@ function handlePeerMessage(data, senderIdx) {
         winnersList = data.winnersList;
         hasRolled = data.hasRolled;
         diceValue = data.diceValue;
+        
+        document.getElementById('diceBtn').innerText = hasRolled ? diceValue : '🎲';
+        
         updateTurnUI();
         renderTokens();
+        resetTurnTimer();
     }
 }
 
@@ -255,7 +261,9 @@ function resetTurnTimer() {
             showToast(`${activePlayerNames[currentTurnIndex] || 'Player'} Time Out!`);
             hasRolled = false;
             isAnimating = false;
-            nextTurn();
+            if (!isFriendMode || currentTurnIndex === myPlayerIndex) {
+                nextTurn();
+            }
         }
     }, 1000);
 }
@@ -839,7 +847,9 @@ function onDiceClick() {
     if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
 
     if (playerLeftStatus[currentTurnIndex]) {
-        nextTurn();
+        if (!isFriendMode || currentTurnIndex === myPlayerIndex) {
+            nextTurn();
+        }
         return;
     }
 
@@ -890,7 +900,13 @@ function checkMovePossibility() {
     renderTokens();
 
     if (movableTokenIndices.length === 0) {
-        setTimeout(() => { if (gameActive) nextTurn(); }, 1000);
+        setTimeout(() => { 
+            if (gameActive) {
+                if (!isFriendMode || currentTurnIndex === myPlayerIndex) {
+                    nextTurn();
+                }
+            } 
+        }, 1000);
     } else if (movableTokenIndices.length === 1) {
         resetTurnTimer();
         setTimeout(() => {
@@ -898,6 +914,7 @@ function checkMovePossibility() {
             if (isAIMode && currentTurnIndex !== 0) {
                 autoCPUMove();
             } else if (isFriendMode && currentTurnIndex !== myPlayerIndex) {
+                // Remote player wait karega
             } else {
                 handleTokenClick(color, movableTokenIndices[0]);
             }
@@ -1100,6 +1117,8 @@ function showFinalLeaderboard() {
 function finishMove(color, extraTurnGranted = false) {
     hasRolled = false;
 
+    if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
+
     if (isFriendMode) {
         syncGameState();
     }
@@ -1118,6 +1137,9 @@ function finishMove(color, extraTurnGranted = false) {
         if (isAIMode && currentTurnIndex !== 0) {
             setTimeout(() => { if (gameActive) performDiceRoll(); }, 600);
         }
+        if (isFriendMode) {
+            syncGameState();
+        }
     } else {
         nextTurn();
     }
@@ -1125,6 +1147,9 @@ function finishMove(color, extraTurnGranted = false) {
 
 function nextTurn() {
     if (!gameActive) return;
+
+    if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
+
     let loopCount = 0;
     do {
         currentTurnIndex = (currentTurnIndex + 1) % activePlayersCount;
