@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ludo Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="maintenance-screen" class="hidden">
+    <div class="maintenance-box">
+      <h2>The game is being updated, please wait a while or check out other games</h2>
+      <button id="redirect-btn">Check</button>
+    </div>
+  </div>
+
+  <div id="game-container">
+    <div id="status-bar">Player 1's Turn</div>
+
+    <div id="board">
+      <div id="p1-token" class="token p1" onclick="handleTokenMove(1)">P1</div>
+      <div id="p2-token" class="token p2" onclick="handleTokenMove(2)">P2</div>
+    </div>
+
+    <div class="dice-wrapper">
+      <div id="dice" onclick="rollDice()">
+        <span id="dice-value">🎲</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

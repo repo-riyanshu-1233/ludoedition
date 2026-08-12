@@ -1,0 +1,135 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+#game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+#status-bar {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+#board {
+  width: 300px;
+  height: 300px;
+  background-color: #1e1e2e;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  position: relative;
+}
+
+.token {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.token.p1 {
+  background-color: #ff4757;
+}
+
+.token.p2 {
+  background-color: #2ed573;
+}
+
+.dice-wrapper {
+  margin-top: 10px;
+}
+
+#dice {
+  width: 70px;
+  height: 70px;
+  background: #ffffff;
+  color: #000;
+  font-size: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  user-select: none;
+}
+
+#dice.rolling {
+  animation: diceRoll 0.5s ease-in-out;
+}
+
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(0.8); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+#maintenance-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  text-align: center;
+  padding: 20px;
+}
+
+#maintenance-screen.hidden {
+  display: none;
+}
+
+.maintenance-box {
+  background: #1f1f2e;
+  padding: 30px;
+  border-radius: 16px;
+  max-width: 400px;
+  border: 1px solid #333;
+}
+
+.maintenance-box h2 {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+  color: #eaeaea;
+  line-height: 1.5;
+}
+
+#redirect-btn {
+  background: #ff4757;
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#redirect-btn:hover {
+  background: #ff6b81;
+}
