@@ -17,6 +17,7 @@ function checkMaintenance() {
 }
 checkMaintenance();
 
+let gameActive = false; // Guard flag to halt async loops on game exit
 let activePlayersCount = 2;
 let isAIMode = false;
 let isFriendMode = false;
@@ -84,6 +85,10 @@ let tokens = {
     blue: [{pos: -1}, {pos: -1}, {pos: -1}, {pos: -1}]
 };
 
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 function initBoard() {
     const board = document.getElementById('board');
     for (let r = 0; r < 15; r++) {
@@ -108,7 +113,7 @@ function initBoard() {
 initBoard();
 
 window.addEventListener('resize', () => {
-    if (document.getElementById('gameView').style.display === 'flex') {
+    if (gameActive && document.getElementById('gameView').style.display === 'flex') {
         renderTokens();
     }
 });
@@ -148,6 +153,20 @@ function broadcastData(data) {
     }
 }
 
+function syncGameState() {
+    if (!isFriendMode) return;
+    broadcastData({
+        type: 'STATE_SYNC',
+        tokens: tokens,
+        currentTurnIndex: currentTurnIndex,
+        finishedPlayers: finishedPlayers,
+        playerLeftStatus: playerLeftStatus,
+        winnersList: winnersList,
+        hasRolled: hasRolled,
+        diceValue: diceValue
+    });
+}
+
 function handlePlayerLeft(idx) {
     if (idx < 0 || idx >= activePlayersCount) return;
     playerLeftStatus[idx] = true;
@@ -183,16 +202,31 @@ function handlePeerMessage(data, senderIdx) {
         handleTokenClick(data.color, data.index, true);
     } else if (data.type === 'PLAYER_LEFT') {
         handlePlayerLeft(data.playerIdx);
+    } else if (data.type === 'STATE_SYNC') {
+        tokens = data.tokens;
+        currentTurnIndex = data.currentTurnIndex;
+        finishedPlayers = data.finishedPlayers;
+        playerLeftStatus = data.playerLeftStatus;
+        winnersList = data.winnersList;
+        hasRolled = data.hasRolled;
+        diceValue = data.diceValue;
+        updateTurnUI();
+        renderTokens();
     }
 }
 
 function resetTurnTimer() {
     clearInterval(turnTimerInterval);
+    if (!gameActive) return;
     turnTimeRemaining = 50;
     const secSpan = document.getElementById('timerSec');
     if (secSpan) secSpan.innerText = turnTimeRemaining;
 
     turnTimerInterval = setInterval(() => {
+        if (!gameActive) {
+            clearInterval(turnTimerInterval);
+            return;
+        }
         turnTimeRemaining--;
         if (secSpan) secSpan.innerText = turnTimeRemaining;
 
@@ -317,7 +351,7 @@ function openFriendMenu() {
 
 function handleCreateRoom() {
     const userName = document.getElementById('pNameInput').value.trim() || 'Host Player';
-    currentRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    currentRoomCode = generateRoomCode();
     isHost = true;
     myPlayerIndex = 0;
     roomPlayersList = [userName];
@@ -379,7 +413,7 @@ function openEnterCodeScreen() {
     openModal(`
         <h3>Join Room</h3>
         <input type="text" id="pNameJoin" class="modal-input" placeholder="Enter Your Name" value="${name}">
-        <input type="number" id="rCodeInput" class="modal-input" placeholder="Enter Room Code">
+        <input type="text" id="rCodeInput" class="modal-input" style="text-transform:uppercase" placeholder="Enter 6-Char Room Code" maxlength="6">
         <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="submitJoinRoom()">Join</button>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openFriendMenu()">Back</button>
     `);
@@ -387,10 +421,10 @@ function openEnterCodeScreen() {
 
 function submitJoinRoom() {
     const userName = document.getElementById('pNameJoin').value.trim() || 'Player 2';
-    const code = document.getElementById('rCodeInput').value.trim();
+    const code = document.getElementById('rCodeInput').value.trim().toUpperCase();
 
-    if (code.length < 4) {
-        alert('Please enter valid room code!');
+    if (code.length < 6) {
+        alert('Please enter valid 6-character room code!');
         return;
     }
 
@@ -529,6 +563,7 @@ function startMatchmaking() {
 
 function launchGame() {
     closeModal();
+    gameActive = true;
     document.getElementById('menuView').style.display = 'none';
     
     const gameView = document.getElementById('gameView');
@@ -567,6 +602,7 @@ function launchGame() {
 }
 
 function exitGameToHome() {
+    gameActive = false;
     stopTurnTimer();
     if (peer) peer.destroy();
     document.getElementById('menuView').style.display = 'flex';
@@ -596,7 +632,7 @@ function createTokenDOM() {
 }
 
 function renderTokens() {
-    if (document.getElementById('gameView').style.display !== 'flex') return;
+    if (!gameActive || document.getElementById('gameView').style.display !== 'flex') return;
 
     const spotGroup = {};
     const currentActiveColor = playerColors[currentTurnIndex];
@@ -651,7 +687,13 @@ function renderTokens() {
             if (elem) {
                 elem.style.display = 'block';
 
-                if (item.color === currentActiveColor && !finishedPlayers[currentTurnIndex]) {
+                // HIGHLIGHT FIX: Do not highlight pieces that are inside 'home'
+                const canBeMoved = hasRolled && (
+                    (item.pos === -1 && diceValue === 6) ||
+                    (typeof item.pos === 'number' && item.pos >= 0 && (item.pos + diceValue) < paths[item.color].length)
+                );
+
+                if (item.color === currentActiveColor && !finishedPlayers[currentTurnIndex] && item.pos !== 'home' && canBeMoved) {
                     elem.classList.add('active-turn-token');
                 } else {
                     elem.classList.remove('active-turn-token');
@@ -706,7 +748,7 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1, c
 }
 
 function onDiceClick() {
-    if (hasRolled || isAnimating) return;
+    if (!gameActive || hasRolled || isAnimating) return;
     if (finishedPlayers[currentTurnIndex]) return;
     if (isAIMode && currentTurnIndex !== 0) return;
     if (isFriendMode && currentTurnIndex !== myPlayerIndex) return;
@@ -720,6 +762,7 @@ function onDiceClick() {
 }
 
 function performDiceRoll(predeterminedVal = null) {
+    if (!gameActive) return;
     stopTurnTimer();
     isAnimating = true;
     const diceBtn = document.getElementById('diceBtn');
@@ -731,6 +774,8 @@ function performDiceRoll(predeterminedVal = null) {
 
     setTimeout(() => {
         clearInterval(rollInterval);
+        if (!gameActive) return;
+
         diceValue = predeterminedVal !== null ? predeterminedVal : (Math.floor(Math.random() * 6) + 1);
         diceBtn.innerText = diceValue;
         diceBtn.classList.remove('rolling');
@@ -746,27 +791,44 @@ function performDiceRoll(predeterminedVal = null) {
 }
 
 function checkMovePossibility() {
+    if (!gameActive) return;
     const color = playerColors[currentTurnIndex];
     const pPath = paths[color];
-    let canMove = false;
+    let movableTokenIndices = [];
 
-    tokens[color].forEach(tok => {
-        if (tok.pos === -1 && diceValue === 6) canMove = true;
-        if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) canMove = true;
+    tokens[color].forEach((tok, idx) => {
+        if (tok.pos === 'home') return;
+        if (tok.pos === -1 && diceValue === 6) movableTokenIndices.push(idx);
+        if (typeof tok.pos === 'number' && tok.pos >= 0 && (tok.pos + diceValue) < pPath.length) movableTokenIndices.push(idx);
     });
 
-    if (!canMove) {
-        setTimeout(nextTurn, 1000);
+    renderTokens();
+
+    if (movableTokenIndices.length === 0) {
+        setTimeout(() => { if (gameActive) nextTurn(); }, 1000);
+    } else if (movableTokenIndices.length === 1) {
+        // SINGLE TOKEN AUTO-MOVE RULE
+        resetTurnTimer();
+        setTimeout(() => {
+            if (!gameActive) return;
+            if (isAIMode && currentTurnIndex !== 0) {
+                autoCPUMove();
+            } else if (isFriendMode && currentTurnIndex !== myPlayerIndex) {
+                // Wait for remote message or state sync
+            } else {
+                handleTokenClick(color, movableTokenIndices[0]);
+            }
+        }, 400);
     } else {
         resetTurnTimer();
         if (isAIMode && currentTurnIndex !== 0) {
-            setTimeout(autoCPUMove, 600);
+            setTimeout(() => { if (gameActive) autoCPUMove(); }, 600);
         }
     }
 }
 
 async function handleTokenClick(color, index, isRemote = false, isAICall = false) {
-    if (!hasRolled || isAnimating) return;
+    if (!gameActive || !hasRolled || isAnimating) return;
     if (color !== playerColors[currentTurnIndex]) return;
     if (finishedPlayers[currentTurnIndex]) return;
     if (isFriendMode && !isRemote && currentTurnIndex !== myPlayerIndex) return;
@@ -778,7 +840,7 @@ async function handleTokenClick(color, index, isRemote = false, isAICall = false
 
     let canBeMoved = false;
     if (tok.pos === -1 && diceValue === 6) canBeMoved = true;
-    if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) canBeMoved = true;
+    if (typeof tok.pos === 'number' && tok.pos >= 0 && (tok.pos + diceValue) < pPath.length) canBeMoved = true;
 
     if (!canBeMoved) return;
 
@@ -800,12 +862,12 @@ async function handleTokenClick(color, index, isRemote = false, isAICall = false
         elem.classList.remove('moving');
         isAnimating = false;
         finishMove(color, false);
-    } else if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) {
+    } else if (typeof tok.pos === 'number' && tok.pos >= 0 && (tok.pos + diceValue) < pPath.length) {
         isAnimating = true;
         elem.classList.add('moving');
 
         const targetPos = tok.pos + diceValue;
-        while (tok.pos < targetPos) {
+        while (tok.pos < targetPos && gameActive) {
             tok.pos++;
             renderTokens();
             await sleep(200);
@@ -825,7 +887,7 @@ async function handleTokenClick(color, index, isRemote = false, isAICall = false
 }
 
 async function checkElimination(currentColor, pos) {
-    if (pos === 'home') return false;
+    if (!gameActive || pos === 'home') return false;
     const currentCell = paths[currentColor][pos];
     if (safeCells.includes(currentCell)) return false;
 
@@ -838,14 +900,14 @@ async function checkElimination(currentColor, pos) {
 
         for (let j = 0; j < tokens[enemyColor].length; j++) {
             let enemyTok = tokens[enemyColor][j];
-            if (enemyTok.pos >= 0 && enemyTok.pos !== 'home') {
+            if (typeof enemyTok.pos === 'number' && enemyTok.pos >= 0) {
                 const enemyCell = paths[enemyColor][enemyTok.pos];
                 if (enemyCell === currentCell) {
                     hasEliminated = true;
                     showToast(`${activePlayerNames[currentTurnIndex] || 'Player'} eliminated ${activePlayerNames[i]}! +1 Turn`);
                     const enemyElem = document.getElementById(`tok-${enemyColor}-${j}`);
                     enemyElem.classList.add('moving');
-                    while (enemyTok.pos > 0) {
+                    while (enemyTok.pos > 0 && gameActive) {
                         enemyTok.pos--;
                         renderTokens();
                         await sleep(40);
@@ -952,6 +1014,10 @@ function showFinalLeaderboard() {
 function finishMove(color, extraTurnGranted = false) {
     hasRolled = false;
 
+    if (isFriendMode) {
+        syncGameState();
+    }
+
     if (checkWinner(color)) {
         if (!checkRemainingPlayersGameEnd()) {
             nextTurn();
@@ -964,7 +1030,7 @@ function finishMove(color, extraTurnGranted = false) {
         renderTokens();
         resetTurnTimer();
         if (isAIMode && currentTurnIndex !== 0) {
-            setTimeout(performDiceRoll, 600);
+            setTimeout(() => { if (gameActive) performDiceRoll(); }, 600);
         }
     } else {
         nextTurn();
@@ -972,6 +1038,7 @@ function finishMove(color, extraTurnGranted = false) {
 }
 
 function nextTurn() {
+    if (!gameActive) return;
     let loopCount = 0;
     do {
         currentTurnIndex = (currentTurnIndex + 1) % activePlayersCount;
@@ -984,12 +1051,16 @@ function nextTurn() {
     updateTurnUI();
     renderTokens();
 
+    if (isFriendMode) {
+        syncGameState();
+    }
+
     if (checkRemainingPlayersGameEnd()) return;
 
     resetTurnTimer();
 
     if (isAIMode && currentTurnIndex !== 0 && !playerLeftStatus[currentTurnIndex] && !finishedPlayers[currentTurnIndex]) {
-        setTimeout(performDiceRoll, 600);
+        setTimeout(() => { if (gameActive) performDiceRoll(); }, 600);
     }
 }
 
@@ -1003,7 +1074,7 @@ function updateTurnUI() {
 }
 
 async function autoCPUMove() {
-    if (!isAIMode || currentTurnIndex === 0 || finishedPlayers[currentTurnIndex]) return;
+    if (!gameActive || !isAIMode || currentTurnIndex === 0 || finishedPlayers[currentTurnIndex]) return;
 
     const currentBotColor = playerColors[currentTurnIndex];
     const botTokens = tokens[currentBotColor];
@@ -1019,7 +1090,7 @@ async function autoCPUMove() {
         if (tok.pos === -1) {
             if (diceValue === 6) score = 400;
             else continue;
-        } else if (tok.pos >= 0 && tok.pos !== 'home' && (tok.pos + diceValue) < pPath.length) {
+        } else if (typeof tok.pos === 'number' && tok.pos >= 0 && (tok.pos + diceValue) < pPath.length) {
             const targetPos = tok.pos + diceValue;
             const targetCell = pPath[targetPos];
 
@@ -1027,7 +1098,7 @@ async function autoCPUMove() {
                 for (let eIdx = 0; eIdx < activePlayersCount; eIdx++) {
                     if (eIdx === currentTurnIndex || playerLeftStatus[eIdx] || finishedPlayers[eIdx]) continue;
                     let enemyColor = playerColors[eIdx];
-                    if (tokens[enemyColor].some(eTok => eTok.pos >= 0 && eTok.pos !== 'home' && paths[enemyColor][eTok.pos] === targetCell)) {
+                    if (tokens[enemyColor].some(eTok => typeof eTok.pos === 'number' && eTok.pos >= 0 && paths[enemyColor][eTok.pos] === targetCell)) {
                         score += 2000;
                     }
                 }
@@ -1045,7 +1116,7 @@ async function autoCPUMove() {
                 if (eIdx === currentTurnIndex || playerLeftStatus[eIdx] || finishedPlayers[eIdx]) continue;
                 let enemyColor = playerColors[eIdx];
                 tokens[enemyColor].forEach(eTok => {
-                    if (eTok.pos >= 0 && eTok.pos !== 'home') {
+                    if (typeof eTok.pos === 'number' && eTok.pos >= 0) {
                         let eCell = paths[enemyColor][eTok.pos];
                         let dist = pPath.indexOf(eCell) - targetPos;
                         if (dist > 0 && dist <= 6) {
@@ -1074,7 +1145,10 @@ async function autoCPUMove() {
 }
 
 function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => {
+        const t = setTimeout(resolve, ms);
+        if (!gameActive) clearTimeout(t);
+    });
 }
 
 trigger1By1Animations('menuView');
