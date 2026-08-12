@@ -899,10 +899,14 @@ function checkMovePossibility() {
 
     renderTokens();
 
+    // BUG FIX START: Save the active player's turn to prevent race condition when handling timeouts
+    const activeTurnAtRoll = currentTurnIndex;
+    // BUG FIX END
+
     if (movableTokenIndices.length === 0) {
         setTimeout(() => { 
             if (gameActive) {
-                if (!isFriendMode || currentTurnIndex === myPlayerIndex) {
+                if (!isFriendMode || activeTurnAtRoll === myPlayerIndex) {
                     nextTurn();
                 }
             } 
@@ -911,9 +915,9 @@ function checkMovePossibility() {
         resetTurnTimer();
         setTimeout(() => {
             if (!gameActive) return;
-            if (isAIMode && currentTurnIndex !== 0) {
+            if (isAIMode && activeTurnAtRoll !== 0) {
                 autoCPUMove();
-            } else if (isFriendMode && currentTurnIndex !== myPlayerIndex) {
+            } else if (isFriendMode && activeTurnAtRoll !== myPlayerIndex) {
                 // Remote player wait karega
             } else {
                 handleTokenClick(color, movableTokenIndices[0]);
