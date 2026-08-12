@@ -1,4 +1,4 @@
-const IS_MAINTENANCE = true;
+const IS_MAINTENANCE = false;
 const WEBSITE_URL = "https://yourwebsite.com";
 
 let currentPlayer = 1;
