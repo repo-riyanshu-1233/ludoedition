@@ -219,6 +219,7 @@ function handlePlayerLeft(idx) {
 
 function handlePeerMessage(data, senderIdx) {
     if (data.type === 'DICE_ROLL') {
+        // Yahan saamne wale ka roll process ho raha hai
         performDiceRoll(data.val);
     } else if (data.type === 'TOKEN_MOVE') {
         handleTokenClick(data.color, data.index, true);
@@ -863,6 +864,9 @@ function performDiceRoll(predeterminedVal = null) {
     const diceBtn = document.getElementById('diceBtn');
     diceBtn.classList.add('rolling');
 
+    // BUG FIX: Pata karo ki kya ye dice roll dusre player ke client se aaya hai
+    const isRemoteRoll = (isFriendMode && predeterminedVal !== null);
+
     const rollInterval = setInterval(() => {
         diceBtn.innerText = Math.floor(Math.random() * 6) + 1;
     }, 50);
@@ -881,11 +885,11 @@ function performDiceRoll(predeterminedVal = null) {
             broadcastData({ type: 'DICE_ROLL', val: diceValue });
         }
 
-        checkMovePossibility();
+        checkMovePossibility(isRemoteRoll);
     }, 500);
 }
 
-function checkMovePossibility() {
+function checkMovePossibility(isRemoteRoll = false) {
     if (!gameActive) return;
     const color = playerColors[currentTurnIndex];
     const pPath = paths[color];
@@ -898,15 +902,14 @@ function checkMovePossibility() {
     });
 
     renderTokens();
-
-    // BUG FIX START: Save the active player's turn to prevent race condition when handling timeouts
     const activeTurnAtRoll = currentTurnIndex;
-    // BUG FIX END
 
     if (movableTokenIndices.length === 0) {
         setTimeout(() => { 
             if (gameActive) {
-                if (!isFriendMode || activeTurnAtRoll === myPlayerIndex) {
+                // BUG FIX: Ab timer khatam hone ke baad wahi insaan turn pass karega jisne asli mein dice ghumaya tha (!isRemoteRoll).
+                // Is se network delay se aane wali race condition hamesha ke liye block ho jayegi.
+                if (!isFriendMode || (!isRemoteRoll && activeTurnAtRoll === myPlayerIndex)) {
                     nextTurn();
                 }
             } 
@@ -917,8 +920,8 @@ function checkMovePossibility() {
             if (!gameActive) return;
             if (isAIMode && activeTurnAtRoll !== 0) {
                 autoCPUMove();
-            } else if (isFriendMode && activeTurnAtRoll !== myPlayerIndex) {
-                // Remote player wait karega
+            } else if (isFriendMode && (isRemoteRoll || activeTurnAtRoll !== myPlayerIndex)) {
+                // Remote player sirf wait karega, uske system ko token apne aap click nahi karne dena hai
             } else {
                 handleTokenClick(color, movableTokenIndices[0]);
             }
