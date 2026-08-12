@@ -296,12 +296,12 @@ body, html {
 .house-overlay-left {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.85);
     display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 15;
+    z-index: 25;
     color: #ff4d4d;
     font-weight: 900;
     font-size: 11px;
@@ -338,6 +338,7 @@ body, html {
 .center-label {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     font-size: 8px; font-weight: 900; color: #fff; z-index: 5; text-shadow: 0 1px 3px #000;
+    pointer-events: none;
 }
 
 .house-inner {
@@ -380,7 +381,7 @@ body, html {
     z-index: 10;
     position: absolute;
     transform: translate(-50%, -50%);
-    transition: left 0.22s ease-out, top 0.22s ease-out, transform 0.15s ease;
+    transition: left 0.22s ease-out, top 0.22s ease-out, transform 0.2s ease, filter 0.2s ease;
 }
 
 .token.red { background: #d63031; }
@@ -388,9 +389,24 @@ body, html {
 .token.yellow { background: #fdcb6e; }
 .token.blue { background: #0984e3; }
 
+.token.active-turn-token {
+    z-index: 80 !important;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.8));
+    animation: pulseTokenElevation 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulseTokenElevation {
+    0% {
+        transform: translate(-50%, -60%) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -75%) scale(1.35);
+    }
+}
+
 .token.moving {
-    transform: translate(-50%, -50%) scale(1.35);
-    z-index: 50;
+    transform: translate(-50%, -50%) scale(1.4) !important;
+    z-index: 100 !important;
 }
 
 .controls {
@@ -398,7 +414,22 @@ body, html {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    position: relative;
+}
+
+.timer-badge {
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid #ffd700;
+    color: #ffd700;
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
 .dice {
@@ -481,6 +512,30 @@ body, html {
     font-size: 15px; box-shadow: 0 4px 0 #b35900; transition: transform 0.1s;
 }
 .action-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #b35900; }
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+.lb-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 10px 14px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.lb-card.rank-1 { border-color: #ffd700; background: rgba(255, 215, 0, 0.15); color: #ffd700; }
+.lb-card.rank-2 { border-color: #c0c0c0; background: rgba(192, 192, 192, 0.15); color: #e0e0e0; }
+.lb-card.rank-3 { border-color: #cd7f32; background: rgba(205, 127, 50, 0.15); color: #ffb07c; }
+.lb-card.rank-loser { border-color: #ff4d4d; background: rgba(255, 77, 77, 0.15); color: #ff7675; }
 
 .bottom-nav { width: 100%; display: flex; justify-content: space-around; background: rgba(0, 0, 0, 0.5); padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.05); }
 .nav-item { display: flex; flex-direction: column; align-items: center; color: #8e9bb0; font-size: 11px; cursor: pointer; gap: 4px; font-weight: 600; }
