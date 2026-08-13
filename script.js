@@ -316,13 +316,12 @@ function openHelpModal() {
     openModal(`
         <h3>How to Play</h3>
         <p style="margin:15px 0; font-size:12px; color:#ccc; text-align:left; line-height:1.5;">
-            1. Roll 6 to move token out of base
-.<br>
+            1. Roll 6 to move token out of base.<br>
             2. Tap token to move step-by-step.<br>
             3. Eliminate opponent tokens to get an extra turn.<br>
             4. Reach center HOME to get an extra turn.<br>
             5. You have 50s for each turn. Reach HOME with all 4 tokens to WIN!
-   </p>
+        </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Close</button>
     `);
 }
@@ -908,8 +907,6 @@ function checkMovePossibility(isRemoteRoll = false) {
     if (movableTokenIndices.length === 0) {
         setTimeout(() => { 
             if (gameActive) {
-                (!isRemoteRoll).
-                
                 if (!isFriendMode || (!isRemoteRoll && activeTurnAtRoll === myPlayerIndex)) {
                     nextTurn();
                 }
