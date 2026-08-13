@@ -322,7 +322,7 @@ function openHelpModal() {
             3. Eliminate opponent tokens to get an extra turn.<br>
             4. Reach center HOME to get an extra turn.<br>
             5. You have 50s for each turn. Reach HOME with all 4 tokens to WIN!
-6. space button to roll dice.    </p>
+   </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Close</button>
     `);
 }
