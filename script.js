@@ -287,8 +287,8 @@ function openContactUs() {
     openModal(`
         <h3>Contact Us</h3>
         <p style="margin:15px 0; font-size:14px; line-height:1.5;">Connect with us on social platforms or email!</p>
-        <button class="action-btn" onclick="window.open('https://instagram.com', '_blank')"><i class="fa-brands fa-instagram"></i> Instagram</button>
-        <button class="action-btn" onclick="window.open('mailto:support@ludogame.com', '_blank')"><i class="fa-solid fa-envelope"></i> Email Us</button>
+        <button class="action-btn" onclick="window.open('https://instagram.com/riynshu1233', '_blank')"><i class="fa-brands fa-instagram"></i> Instagram</button>
+        <button class="action-btn" onclick="window.open('mailto:riyanshusinh@gmail.com', '_blank')"><i class="fa-solid fa-envelope"></i> Email Us</button>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openTopMenu()">Back</button>
     `);
 }
@@ -297,7 +297,7 @@ function openAboutUs() {
     openModal(`
         <h3>About Us</h3>
         <p style="margin:15px 0; font-size:13px; color:#ddd; line-height:1.6;">
-            Welcome to Ludo King Style Game! Designed with smooth animations, local multiplayer, multi-bot AI mode, 50s turn timer, smart AI chasing, and custom room features.
+            Welcome to Ludo Edition! Designed by riyanshu.devl.Ai, local multiplayer, multi-bot AI mode pm, and custom room features.
         </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openTopMenu()">Back</button>
     `);
@@ -307,7 +307,7 @@ function openOtherGames() {
     openModal(`
         <h3>Other Games</h3>
         <p style="margin:15px 0; font-size:14px;">Explore more awesome games on our official platform!</p>
-        <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="window.open('https://google.com', '_blank')">Check</button>
+        <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="window.open('https://arcade-edition.onrender.com/', '_blank')">Check</button>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openTopMenu()">Back</button>
     `);
 }
@@ -316,12 +316,13 @@ function openHelpModal() {
     openModal(`
         <h3>How to Play</h3>
         <p style="margin:15px 0; font-size:12px; color:#ccc; text-align:left; line-height:1.5;">
-            1. Roll 6 to move token out of base.<br>
+            1. Roll 6 to move token out of base
+.<br>
             2. Tap token to move step-by-step.<br>
             3. Eliminate opponent tokens to get an extra turn.<br>
             4. Reach center HOME to get an extra turn.<br>
             5. You have 50s for each turn. Reach HOME with all 4 tokens to WIN!
-        </p>
+6. space button to roll dice.    </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Close</button>
     `);
 }
@@ -864,7 +865,7 @@ function performDiceRoll(predeterminedVal = null) {
     const diceBtn = document.getElementById('diceBtn');
     diceBtn.classList.add('rolling');
 
-    // BUG FIX: Pata karo ki kya ye dice roll dusre player ke client se aaya hai
+    
     const isRemoteRoll = (isFriendMode && predeterminedVal !== null);
 
     const rollInterval = setInterval(() => {
@@ -907,8 +908,8 @@ function checkMovePossibility(isRemoteRoll = false) {
     if (movableTokenIndices.length === 0) {
         setTimeout(() => { 
             if (gameActive) {
-                // BUG FIX: Ab timer khatam hone ke baad wahi insaan turn pass karega jisne asli mein dice ghumaya tha (!isRemoteRoll).
-                // Is se network delay se aane wali race condition hamesha ke liye block ho jayegi.
+                (!isRemoteRoll).
+                
                 if (!isFriendMode || (!isRemoteRoll && activeTurnAtRoll === myPlayerIndex)) {
                     nextTurn();
                 }
@@ -1047,7 +1048,7 @@ function checkWinner(color) {
             openModal(`
                 <h2 style="color:#ffd700; margin-bottom:10px;">🏆 CONGRATULATIONS! 🏆</h2>
                 <p style="font-size:16px; color:#fff; margin-bottom:20px;">You win at <b>${positionStr}</b> Position!</p>
-                <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="spectateGame()">SPECTATE / WATCH GAME</button>
+                <button class="action-btn" style="background:#2ecc71; color:#fff;" onclick="spectateGame()">SPECTATE</button>
                 <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="exitGameToHome()">EXIT TO HOME</button>
             `);
         } else {
