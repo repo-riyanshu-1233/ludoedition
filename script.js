@@ -219,7 +219,7 @@ function handlePlayerLeft(idx) {
 
 function handlePeerMessage(data, senderIdx) {
     if (data.type === 'DICE_ROLL') {
-        // Yahan saamne wale ka roll process ho raha hai
+        
         performDiceRoll(data.val);
     } else if (data.type === 'TOKEN_MOVE') {
         handleTokenClick(data.color, data.index, true);
@@ -297,7 +297,7 @@ function openAboutUs() {
     openModal(`
         <h3>About Us</h3>
         <p style="margin:15px 0; font-size:13px; color:#ddd; line-height:1.6;">
-            Welcome to Ludo Edition! Designed by riyanshu.devl.Ai, local multiplayer, multi-bot AI mode pm, and custom room features.
+            Welcome to Ludo Edition! Designed by riyanshu.devl.Ai, local multiplayer, multi-bot AI mode , and custom room features.
         </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="openTopMenu()">Back</button>
     `);
@@ -320,7 +320,7 @@ function openHelpModal() {
             2. Tap token to move step-by-step.<br>
             3. Eliminate opponent tokens to get an extra turn.<br>
             4. Reach center HOME to get an extra turn.<br>
-            5. You have 50s for each turn. Reach HOME with all 4 tokens to WIN!
+            5. Reach HOME with all 4 tokens to WIN!
         </p>
         <button class="action-btn" style="background:#e74c3c; color:#fff;" onclick="closeModal()">Close</button>
     `);
