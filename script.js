@@ -9,7 +9,7 @@ function checkMaintenance() {
         overlay.innerHTML = `
             <div style="font-size: 52px; color: #ffd700; margin-bottom: 15px;"><i class="fa-solid fa-screwdriver-wrench"></i></div>
             <h2 style="font-size: 22px; margin-bottom: 10px; color: #ffd700;">Game Maintenance</h2>
-            <p style="font-size: 14px; max-width: 300px; line-height: 1.5; margin-bottom: 20px; color: #ccc;">The game is being updated please wait a while or check out other game</p>
+            <p style="font-size: 14px; max-width: 300px; line-height: 1.5; margin-bottom: 20px; color: #ccc;">Hey there it's me the creator riyanshu sinh the game is being updated and getting the Bug fixes hope you all enjoyed the game the game Re-launch soon after fixing all bugs and upgrade, until check my other games.</p>
             <button onclick="window.location.href='${MAINTENANCE_REDIRECT_URL}'" style="background: linear-gradient(180deg, #ffb347, #ff8800); border: none; padding: 12px 35px; border-radius: 10px; font-weight: bold; font-size: 16px; color: #000; cursor: pointer; box-shadow: 0 4px 0 #b35900;">Check</button>
         `;
         document.body.appendChild(overlay);
