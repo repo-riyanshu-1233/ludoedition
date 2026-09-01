@@ -1,5 +1,5 @@
-const MAINTENANCE_MODE = false;
-const MAINTENANCE_REDIRECT_URL = "https://google.com";
+const MAINTENANCE_MODE = true;
+const MAINTENANCE_REDIRECT_URL = "https://arcade-edition.onrender.com/";
 
 function checkMaintenance() {
     if (MAINTENANCE_MODE) {
