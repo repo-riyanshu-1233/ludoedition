@@ -276,8 +276,8 @@ body, html {
 }
 
 .ludo-board {
-    width: 340px;
-    height: 340px;
+    width: min(340px, 92vw);
+    height: min(340px, 92vw);
     background: #fff;
     display: grid;
     grid-template-columns: repeat(15, 1fr);
@@ -510,7 +510,7 @@ body, html {
 }
 
 .modal-box {
-    width: 320px;
+    width: min(320px, 90vw);
     background: linear-gradient(180deg, #2b0351, #16012b);
     border: 2px solid #ffb347;
     border-radius: 18px;
