@@ -426,6 +426,8 @@ function handleCreateRoom() {
                 connections.push(conn);
                 roomPlayersList.push(data.name);
 
+                conn.send({ type: 'ASSIGN_INDEX', index: newIdx });
+
                 connections.forEach(c => {
                     if (c && c.open) {
                         c.send({
@@ -455,7 +457,10 @@ function handleCreateRoom() {
                     connections = connections.filter(c => c !== conn);
                     connections.forEach((c, newI) => c.playerIndex = newI + 1);
                     connections.forEach(c => {
-                        if (c && c.open) c.send({ type: 'LOBBY_UPDATE', players: roomPlayersList });
+                        if (c && c.open) {
+                            c.send({ type: 'ASSIGN_INDEX', index: c.playerIndex });
+                            c.send({ type: 'LOBBY_UPDATE', players: roomPlayersList });
+                        }
                     });
                     renderWoodenLobbyList();
                 }
@@ -511,10 +516,10 @@ function submitJoinRoom() {
         });
 
         hostConn.on('data', (data) => {
-            if (data.type === 'LOBBY_UPDATE') {
+            if (data.type === 'ASSIGN_INDEX') {
+                myPlayerIndex = data.index;
+            } else if (data.type === 'LOBBY_UPDATE') {
                 roomPlayersList = data.players;
-                myPlayerIndex = roomPlayersList.indexOf(userName);
-                if (myPlayerIndex === -1) myPlayerIndex = roomPlayersList.length - 1;
                 renderWoodenLobbyList();
             } else if (data.type === 'GAME_START') {
                 activePlayerNames = data.players;
@@ -828,7 +833,11 @@ function placeTokenCentered(tokenElem, spotElem, grpIdx = 0, totalInGroup = 1, c
             { x: -offsetVal, y: -offsetVal },
             { x: offsetVal, y: offsetVal },
             { x: -offsetVal, y: offsetVal },
-            { x: offsetVal, y: -offsetVal }
+            { x: offsetVal, y: -offsetVal },
+            { x: 0, y: -offsetVal * 1.6 },
+            { x: 0, y: offsetVal * 1.6 },
+            { x: -offsetVal * 1.6, y: 0 },
+            { x: offsetVal * 1.6, y: 0 }
         ];
         const off = offsets[grpIdx % offsets.length];
         centerX += off.x;
@@ -858,7 +867,7 @@ function onDiceClick() {
 }
 
 function performDiceRoll(predeterminedVal = null) {
-    if (!gameActive) return;
+    if (!gameActive || hasRolled || isAnimating) return;
     stopTurnTimer();
     isAnimating = true;
     const diceBtn = document.getElementById('diceBtn');
@@ -926,7 +935,7 @@ function checkMovePossibility(isRemoteRoll = false) {
         }, 400);
     } else {
         resetTurnTimer();
-        if (isAIMode && currentTurnIndex !== 0) {
+        if (isAIMode && activeTurnAtRoll !== 0) {
             setTimeout(() => { if (gameActive) autoCPUMove(); }, 600);
         }
     }
