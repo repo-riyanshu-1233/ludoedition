@@ -2,6 +2,8 @@
 
 A modern web-based Ludo game featuring Single Player AI, local Pass & Play, and real-time online multiplayer gameplay.
 
+live demo web - https://ludoedition.onrender.com
+
 ✨ Features
 
 - 🤖 AI Mode — Play Ludo against AI opponents.
